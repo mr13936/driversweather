@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Navigation, Loader2, Info } from 'lucide-react';
+import { Calendar, Navigation, Loader2, Info, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +47,11 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
     onSubmit(from, to, new Date(departureTime));
   };
 
+  const handleSwapCities = () => {
+    setFrom(to);
+    setTo(from);
+  };
+
   return (
     <Card className="card-shadow animate-fade-in">
       <CardHeader className="pb-4">
@@ -57,7 +62,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_auto_1fr_1fr_auto]">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">From</label>
               <CityAutocomplete
@@ -66,6 +71,19 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
                 placeholder="Departure city"
                 iconColor="text-muted-foreground"
               />
+            </div>
+            
+            <div className="flex items-end pb-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleSwapCities}
+                className="h-9 w-9 text-muted-foreground hover:text-primary"
+                title="Swap cities"
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="space-y-2">
