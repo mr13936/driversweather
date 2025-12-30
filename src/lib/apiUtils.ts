@@ -344,9 +344,13 @@ export const getWeather = async (
   const weatherCode = data.hourly.weather_code[closestIndex] || 0;
   const weatherSymbol = mapWeatherCodeToSymbol(weatherCode);
   
+  // Map Open-Meteo weather codes to SMHI-compatible precipitation types
+  // SMHI pcat: 0=None, 1=Snow, 2=Sleet, 3=Rain, 4=Drizzle, 5=Freezing rain, 6=Freezing drizzle
+  const precipitationType = mapWeatherCodeToPrecipType(weatherCode);
+  
   return {
     temperature: data.hourly.temperature_2m[closestIndex] || 0,
-    precipitationType: weatherCode >= 60 && weatherCode < 70 ? 1 : (weatherCode >= 70 && weatherCode < 80 ? 2 : 0),
+    precipitationType,
     precipitationIntensity: data.hourly.precipitation[closestIndex] || 0,
     windSpeed: data.hourly.wind_speed_10m[closestIndex] || 0,
     visibility: (data.hourly.visibility[closestIndex] || 50000) / 1000, // Convert to km
@@ -377,4 +381,30 @@ const mapWeatherCodeToSymbol = (code: number): number => {
   // Thunderstorm
   if (code >= 95 && code <= 99) return 9;
   return 1;
+};
+
+// Map Open-Meteo WMO weather codes to SMHI-compatible precipitation category
+// SMHI pcat: 0=None, 1=Snow, 2=Sleet, 3=Rain, 4=Drizzle, 5=Freezing rain, 6=Freezing drizzle
+const mapWeatherCodeToPrecipType = (code: number): number => {
+  // No precipitation
+  if (code <= 3) return 0;
+  // Fog - no precipitation
+  if (code >= 45 && code <= 48) return 0;
+  // Drizzle (51-55)
+  if (code >= 51 && code <= 55) return 4;
+  // Freezing drizzle (56-57)
+  if (code >= 56 && code <= 57) return 6;
+  // Rain (61-65)
+  if (code >= 61 && code <= 65) return 3;
+  // Freezing rain (66-67)
+  if (code >= 66 && code <= 67) return 5;
+  // Snow (71-77)
+  if (code >= 71 && code <= 77) return 1;
+  // Rain showers (80-82)
+  if (code >= 80 && code <= 82) return 3;
+  // Snow showers (85-86)
+  if (code >= 85 && code <= 86) return 1;
+  // Thunderstorm (95-99) - assume rain
+  if (code >= 95 && code <= 99) return 3;
+  return 0;
 };
