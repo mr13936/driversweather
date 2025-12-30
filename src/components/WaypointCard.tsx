@@ -110,7 +110,7 @@ export const WaypointCard = ({
                   {getWeatherDescription(weather.weatherSymbol)}
                 </p>
                 
-                <TooltipProvider>
+                <TooltipProvider delayDuration={200}>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -119,7 +119,7 @@ export const WaypointCard = ({
                           <span>{weather.temperature.toFixed(1)}°C</span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent sideOffset={2}>
                         <p>Air temperature</p>
                       </TooltipContent>
                     </Tooltip>
@@ -131,7 +131,7 @@ export const WaypointCard = ({
                           <span>{weather.windSpeed.toFixed(1)} m/s</span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent sideOffset={2}>
                         <p>Wind speed (meters per second)</p>
                       </TooltipContent>
                     </Tooltip>
@@ -146,7 +146,7 @@ export const WaypointCard = ({
                             </span>
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent sideOffset={2}>
                           <p>Precipitation intensity (millimeters per hour)</p>
                         </TooltipContent>
                       </Tooltip>
@@ -159,7 +159,7 @@ export const WaypointCard = ({
                           <span>{weather.visibility.toFixed(1)} km</span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent sideOffset={2}>
                         <p>Visibility distance</p>
                       </TooltipContent>
                     </Tooltip>
