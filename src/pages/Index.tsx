@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Cloud, Car } from 'lucide-react';
 import { RouteInput } from '@/components/RouteInput';
 import { RouteSummary } from '@/components/RouteSummary';
+import { RouteMap } from '@/components/RouteMap';
 import { WeatherTimeline } from '@/components/WeatherTimeline';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { 
@@ -110,13 +111,21 @@ const Index = () => {
         )}
         
         {routeData && departureTime && (
-          <RouteSummary
-            distance={routeData.distance}
-            duration={routeData.duration}
-            departureTime={departureTime}
-            fromName={fromName}
-            toName={toName}
-          />
+          <>
+            <RouteSummary
+              distance={routeData.distance}
+              duration={routeData.duration}
+              departureTime={departureTime}
+              fromName={fromName}
+              toName={toName}
+            />
+            
+            <RouteMap
+              routeGeometry={routeData.geometry}
+              waypoints={waypoints}
+              weatherData={weatherData}
+            />
+          </>
         )}
         
         {waypoints.length > 0 && (
