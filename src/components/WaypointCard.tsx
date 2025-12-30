@@ -29,7 +29,7 @@ export const WaypointCard = ({
   isLast
 }: WaypointCardProps) => {
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('sv-SE', { 
+    return date.toLocaleTimeString('en-GB', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });

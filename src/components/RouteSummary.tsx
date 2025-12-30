@@ -25,14 +25,14 @@ export const RouteSummary = ({
   const arrivalTime = new Date(departureTime.getTime() + duration * 1000);
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('sv-SE', { 
+    return date.toLocaleTimeString('en-GB', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('sv-SE', { 
+    return date.toLocaleDateString('en-GB', { 
       weekday: 'short',
       month: 'short', 
       day: 'numeric' 

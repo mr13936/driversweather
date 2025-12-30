@@ -54,7 +54,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
   const polylineRef = useRef<L.Polyline | null>(null);
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('sv-SE', { 
+    return date.toLocaleTimeString('en-GB', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
