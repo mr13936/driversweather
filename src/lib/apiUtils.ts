@@ -221,47 +221,22 @@ const getWeatherFromSMHI = async (
   const visibility = getParam('vis'); // Visibility in km
   const precipitationCategory = getParam('pcat'); // Precipitation category
   const precipitationIntensity = getParam('pmean'); // Mean precipitation intensity mm/h
-  const weatherSymbolCode = getParam('Wsymb2'); // Weather symbol
-  
-  // Map SMHI weather symbol to our format
-  const weatherSymbol = mapSMHIWeatherSymbol(weatherSymbolCode);
+  const weatherSymbolCode = getParam('Wsymb2'); // Weather symbol (1-27)
   
   // Calculate approximate sunrise/sunset for the date
   const { sunrise, sunset } = calculateSunTimes(lat, lon, targetTime);
   
+  // SMHI Wsymb2 codes 1-27 are directly compatible with our weatherUtils
   return {
     temperature,
-    precipitationType: precipitationCategory,
+    precipitationType: precipitationCategory, // SMHI pcat: 0=None, 1=Snow, 2=Sleet, 3=Rain, etc.
     precipitationIntensity,
     windSpeed,
     visibility: visibility || 50,
-    weatherSymbol,
+    weatherSymbol: weatherSymbolCode, // Pass through directly, weatherUtils handles 1-27
     sunrise,
     sunset
   };
-};
-
-// Map SMHI Wsymb2 codes to our internal format
-const mapSMHIWeatherSymbol = (code: number): number => {
-  // 1-2: Clear
-  if (code <= 2) return 1;
-  // 3-4: Partly cloudy
-  if (code <= 4) return 2;
-  // 5-6: Cloudy
-  if (code <= 6) return 3;
-  // 7: Fog
-  if (code === 7) return 4;
-  // 8-10: Light rain
-  if (code <= 10) return 5;
-  // 11-14: Rain/Heavy rain
-  if (code <= 14) return 6;
-  // 15-17: Snow
-  if (code <= 17) return 8;
-  // 18-20: Rain and snow
-  if (code <= 20) return 6;
-  // 21-27: Thunder
-  if (code <= 27) return 9;
-  return 1;
 };
 
 // Simple sun calculation (approximation)
@@ -360,26 +335,42 @@ export const getWeather = async (
   };
 };
 
-// Map Open-Meteo WMO weather codes to our internal symbol format
+// Map Open-Meteo WMO weather codes to SMHI-compatible Wsymb2 format (1-27)
 const mapWeatherCodeToSymbol = (code: number): number => {
-  // Clear
+  // Clear sky
   if (code === 0) return 1;
   // Partly cloudy
-  if (code === 1 || code === 2) return 2;
-  // Cloudy
-  if (code === 3) return 3;
+  if (code === 1) return 2;
+  if (code === 2) return 3;
+  // Overcast
+  if (code === 3) return 6;
   // Fog
-  if (code >= 45 && code <= 48) return 4;
-  // Light rain
-  if (code >= 51 && code <= 55) return 5;
-  // Rain
-  if (code >= 61 && code <= 65) return 6;
-  // Heavy rain
-  if (code >= 80 && code <= 82) return 7;
-  // Snow
-  if (code >= 71 && code <= 77) return 8;
-  // Thunderstorm
-  if (code >= 95 && code <= 99) return 9;
+  if (code >= 45 && code <= 48) return 7;
+  // Drizzle (51-55) - light rain
+  if (code >= 51 && code <= 53) return 18;
+  if (code >= 54 && code <= 55) return 19;
+  // Freezing drizzle (56-57)
+  if (code >= 56 && code <= 57) return 22;
+  // Rain (61-65)
+  if (code === 61) return 18;
+  if (code === 63) return 19;
+  if (code === 65) return 20;
+  // Freezing rain (66-67)
+  if (code >= 66 && code <= 67) return 22;
+  // Snow (71-77)
+  if (code === 71) return 25;
+  if (code === 73) return 26;
+  if (code === 75) return 27;
+  if (code === 77) return 25; // Snow grains
+  // Rain showers (80-82)
+  if (code === 80) return 8;
+  if (code === 81) return 9;
+  if (code === 82) return 10;
+  // Snow showers (85-86)
+  if (code === 85) return 15;
+  if (code === 86) return 17;
+  // Thunderstorm (95-99)
+  if (code >= 95 && code <= 99) return 21;
   return 1;
 };
 
