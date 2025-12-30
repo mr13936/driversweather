@@ -1,5 +1,16 @@
 // SMHI Weather Symbol mapping to emojis and descriptions
-export const getWeatherIcon = (symbol: number): string => {
+export const getWeatherIcon = (symbol: number, isNight: boolean = false): string => {
+  // Night variants for clear/partly cloudy conditions
+  if (isNight) {
+    const nightIcons: Record<number, string> = {
+      1: '🌙',   // Clear sky at night
+      2: '🌙',   // Nearly clear sky at night
+      3: '☁️',   // Variable cloudiness at night
+      4: '☁️',   // Halfclear sky at night
+    };
+    if (nightIcons[symbol]) return nightIcons[symbol];
+  }
+  
   const icons: Record<number, string> = {
     1: '☀️',   // Clear sky
     2: '🌤️',  // Nearly clear sky
@@ -30,6 +41,13 @@ export const getWeatherIcon = (symbol: number): string => {
     27: '❄️',  // Heavy snowfall
   };
   return icons[symbol] || '🌡️';
+};
+
+// Helper to determine if a given time is during night hours
+export const isNightTime = (time: Date, sunrise?: Date, sunset?: Date): boolean => {
+  if (!sunrise || !sunset) return false;
+  
+  return time.getTime() < sunrise.getTime() || time.getTime() > sunset.getTime();
 };
 
 export const getWeatherDescription = (symbol: number): string => {
