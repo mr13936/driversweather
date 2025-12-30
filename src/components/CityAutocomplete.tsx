@@ -119,7 +119,7 @@ export const CityAutocomplete = ({
   return (
     <div ref={containerRef} className="relative">
       <div className="relative rounded-lg border border-input bg-background transition-colors focus-within:border-primary">
-        <label className="absolute left-3 top-2 text-xs font-medium text-muted-foreground">
+        <label className="absolute left-3 top-2.5 text-xs font-medium text-muted-foreground">
           {label}
         </label>
         <Input
@@ -128,7 +128,7 @@ export const CityAutocomplete = ({
           onKeyDown={handleKeyDown}
           onFocus={() => value.length >= 2 && setShowSuggestions(true)}
           placeholder={placeholder}
-          className="border-0 pt-6 pb-2 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="h-14 border-0 pt-7 pb-2 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
           required
           autoComplete="off"
         />
