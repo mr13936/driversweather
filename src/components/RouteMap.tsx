@@ -79,7 +79,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
   const polylineRef = useRef<L.Polyline | null>(null);
   const lastRouteRef = useRef<string>(''); // Track route changes
   const [actualShown, setActualShown] = useState(0);
-  const [, forceUpdate] = useState(0); // Trigger re-render on zoom/pan
+  const [viewVersion, setViewVersion] = useState(0); // Trigger re-render on zoom/pan
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-GB', { 
@@ -90,7 +90,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
 
   // Trigger marker update on map view change
   const handleViewChange = useCallback(() => {
-    forceUpdate(n => n + 1);
+    setViewVersion(n => n + 1);
   }, []);
 
   // Initialize map
@@ -117,13 +117,9 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     };
   }, [handleViewChange]);
 
-  // Update route and markers when data changes
+  // Update polyline when route changes
   useEffect(() => {
     if (!mapRef.current) return;
-
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
 
     // Clear existing polyline
     if (polylineRef.current) {
@@ -132,7 +128,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     }
 
     // Add route polyline
-    const routeKey = JSON.stringify(routeGeometry.slice(0, 5)); // Simple check for route changes
+    const routeKey = JSON.stringify(routeGeometry.slice(0, 5));
     const isNewRoute = routeKey !== lastRouteRef.current;
     
     if (routeGeometry.length > 0) {
@@ -142,13 +138,21 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
         opacity: 0.8,
       }).addTo(mapRef.current);
 
-      // Only fit bounds when the route itself changes, not on zoom/visibleCount changes
       if (isNewRoute) {
         lastRouteRef.current = routeKey;
         const bounds = L.latLngBounds(routeGeometry);
         mapRef.current.fitBounds(bounds, { padding: [50, 50] });
       }
     }
+  }, [routeGeometry]);
+
+  // Update markers when data or view changes
+  useEffect(() => {
+    if (!mapRef.current || waypoints.length === 0) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
     // Get current map bounds
     const bounds = mapRef.current.getBounds();
@@ -221,7 +225,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
 
     // Update actual shown count
     setActualShown(markerCount);
-  }, [routeGeometry, waypoints, weatherData]);
+  }, [waypoints, weatherData, viewVersion]);
 
   return (
     <div className="relative w-full h-[400px] rounded-lg overflow-hidden card-shadow animate-slide-up">
