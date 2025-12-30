@@ -86,6 +86,9 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
                   required
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Weather forecasts available up to 7 days ahead
+              </p>
             </div>
             
             <div className="flex items-end">
