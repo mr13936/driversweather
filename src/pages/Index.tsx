@@ -145,8 +145,8 @@ const Index = () => {
         
         {!routeData && !isLoading && !error && (
           <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-4">
-              <Cloud className="h-10 w-10 text-primary" />
+            <div className="h-20 w-20 mb-4">
+              <img src={logo} alt="WeatherWay" className="h-full w-full object-contain" />
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">
               Plan Your Journey
