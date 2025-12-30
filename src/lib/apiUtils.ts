@@ -35,10 +35,9 @@ export interface WeatherData {
   weatherSymbol: number;
 }
 
-// Geocode a location name to coordinates using Nominatim
+// Geocode a location name to coordinates using Nominatim (worldwide)
 export const geocodeLocation = async (name: string): Promise<Coordinates> => {
-  const searchQuery = `${name}, Sweden`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(name)}&limit=1`;
   
   const response = await fetch(url, {
     headers: {
@@ -53,7 +52,7 @@ export const geocodeLocation = async (name: string): Promise<Coordinates> => {
   const data = await response.json();
   
   if (data.length === 0) {
-    throw new Error(`Location "${name}" not found in Sweden`);
+    throw new Error(`Location "${name}" not found`);
   }
   
   return {
@@ -164,17 +163,13 @@ export const calculateWaypoints = (
   return waypoints;
 };
 
-// Get weather data from SMHI for a specific location and time
+// Get weather data from Open-Meteo (worldwide, free, no API key)
 export const getWeather = async (
   lat: number,
   lon: number,
   targetTime: Date
 ): Promise<WeatherData> => {
-  // Round coordinates to 6 decimal places as required by SMHI
-  const roundedLat = Math.round(lat * 1000000) / 1000000;
-  const roundedLon = Math.round(lon * 1000000) / 1000000;
-  
-  const url = `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/${roundedLon}/lat/${roundedLat}/data.json`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,visibility&timezone=auto`;
   
   const response = await fetch(url);
   
@@ -186,30 +181,51 @@ export const getWeather = async (
   
   // Find the forecast closest to the target time
   const targetTimestamp = targetTime.getTime();
-  let closestForecast = data.timeSeries[0];
+  let closestIndex = 0;
   let closestDiff = Infinity;
   
-  for (const forecast of data.timeSeries) {
-    const forecastTime = new Date(forecast.validTime).getTime();
+  for (let i = 0; i < data.hourly.time.length; i++) {
+    const forecastTime = new Date(data.hourly.time[i]).getTime();
     const diff = Math.abs(forecastTime - targetTimestamp);
     if (diff < closestDiff) {
       closestDiff = diff;
-      closestForecast = forecast;
+      closestIndex = i;
     }
   }
   
-  // Extract parameters
-  const getParam = (name: string): number => {
-    const param = closestForecast.parameters.find((p: any) => p.name === name);
-    return param ? param.values[0] : 0;
-  };
+  // Map Open-Meteo weather codes to our weather symbol format
+  const weatherCode = data.hourly.weather_code[closestIndex] || 0;
+  const weatherSymbol = mapWeatherCodeToSymbol(weatherCode);
   
   return {
-    temperature: getParam('t'),
-    precipitationType: getParam('pcat'),
-    precipitationIntensity: getParam('pmean'),
-    windSpeed: getParam('ws'),
-    visibility: getParam('vis'),
-    weatherSymbol: getParam('Wsymb2')
+    temperature: data.hourly.temperature_2m[closestIndex] || 0,
+    precipitationType: weatherCode >= 60 && weatherCode < 70 ? 1 : (weatherCode >= 70 && weatherCode < 80 ? 2 : 0),
+    precipitationIntensity: data.hourly.precipitation[closestIndex] || 0,
+    windSpeed: data.hourly.wind_speed_10m[closestIndex] || 0,
+    visibility: (data.hourly.visibility[closestIndex] || 50000) / 1000, // Convert to km
+    weatherSymbol
   };
+};
+
+// Map Open-Meteo WMO weather codes to our internal symbol format
+const mapWeatherCodeToSymbol = (code: number): number => {
+  // Clear
+  if (code === 0) return 1;
+  // Partly cloudy
+  if (code === 1 || code === 2) return 2;
+  // Cloudy
+  if (code === 3) return 3;
+  // Fog
+  if (code >= 45 && code <= 48) return 4;
+  // Light rain
+  if (code >= 51 && code <= 55) return 5;
+  // Rain
+  if (code >= 61 && code <= 65) return 6;
+  // Heavy rain
+  if (code >= 80 && code <= 82) return 7;
+  // Snow
+  if (code >= 71 && code <= 77) return 8;
+  // Thunderstorm
+  if (code >= 95 && code <= 99) return 9;
+  return 1;
 };
