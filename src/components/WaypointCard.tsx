@@ -31,7 +31,6 @@ const MouseTooltip = ({ text, children }: MouseTooltipProps) => {
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
       onMouseMove={handleMouseMove}
-      className="cursor-help"
     >
       {children}
       {visible && createPortal(
