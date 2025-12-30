@@ -83,7 +83,14 @@ export const getWeatherDescription = (symbol: number): string => {
   return descriptions[symbol] || 'Unknown';
 };
 
-export const getPrecipitationType = (pcat: number): string => {
+export const getPrecipitationType = (pcat: number, temperature?: number): string => {
+  // If temperature is provided and above 2°C, snow/sleet becomes rain
+  if (temperature !== undefined && temperature > 2) {
+    if (pcat === 1 || pcat === 2) {
+      return 'Rain'; // Snow/sleet is not possible above 2°C
+    }
+  }
+  
   const types: Record<number, string> = {
     0: 'None',
     1: 'Snow',
@@ -93,7 +100,7 @@ export const getPrecipitationType = (pcat: number): string => {
     5: 'Freezing rain',
     6: 'Freezing drizzle',
   };
-  return types[pcat] || 'Unknown';
+  return types[pcat] || 'Precipitation';
 };
 
 export const isDangerousConditions = (
