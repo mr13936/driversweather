@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { MapPin, Calendar, Navigation, Loader2 } from 'lucide-react';
+import { Calendar, Navigation, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CityAutocomplete } from './CityAutocomplete';
 
 interface RouteInputProps {
   onSubmit: (from: string, to: string, departureTime: Date) => void;
@@ -41,30 +42,22 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">From</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  placeholder="Departure city"
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <CityAutocomplete
+                value={from}
+                onChange={setFrom}
+                placeholder="Departure city"
+                iconColor="text-muted-foreground"
+              />
             </div>
             
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">To</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
-                <Input
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  placeholder="Destination city"
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <CityAutocomplete
+                value={to}
+                onChange={setTo}
+                placeholder="Destination city"
+                iconColor="text-primary"
+              />
             </div>
             
             <div className="space-y-2">
