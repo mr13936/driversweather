@@ -1,5 +1,4 @@
-import { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Waypoint, WeatherData } from '@/lib/apiUtils';
@@ -18,19 +17,6 @@ interface RouteMapProps {
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
 }
-
-// Component to fit bounds when route changes
-const FitBounds = ({ bounds }: { bounds: L.LatLngBoundsExpression }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [map, bounds]);
-  
-  return null;
-};
 
 // Create custom icon with weather emoji
 const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => {
@@ -62,15 +48,10 @@ const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => 
 };
 
 export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProps) => {
-  // Calculate bounds from route geometry
-  const bounds = useMemo(() => {
-    if (routeGeometry.length === 0) return null;
-    return L.latLngBounds(routeGeometry.map(([lat, lon]) => [lat, lon]));
-  }, [routeGeometry]);
-
-  // Default center (Sweden)
-  const defaultCenter: [number, number] = [62.0, 17.0];
-  const defaultZoom = 5;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+  const polylineRef = useRef<L.Polyline | null>(null);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('sv-SE', { 
@@ -79,69 +60,97 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     });
   };
 
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    mapRef.current = L.map(mapContainerRef.current).setView([62.0, 17.0], 5);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(mapRef.current);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update route and markers when data changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Clear existing polyline
+    if (polylineRef.current) {
+      polylineRef.current.remove();
+      polylineRef.current = null;
+    }
+
+    // Add route polyline
+    if (routeGeometry.length > 0) {
+      polylineRef.current = L.polyline(routeGeometry, {
+        color: '#3b82f6',
+        weight: 4,
+        opacity: 0.8,
+      }).addTo(mapRef.current);
+
+      // Fit bounds to route
+      const bounds = L.latLngBounds(routeGeometry);
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+
+    // Add waypoint markers
+    waypoints.forEach((waypoint, index) => {
+      if (!mapRef.current) return;
+
+      const weather = weatherData.get(index);
+      const isFirst = index === 0;
+      const isLast = index === waypoints.length - 1;
+      const emoji = weather 
+        ? getWeatherIcon(weather.weatherSymbol) 
+        : (isFirst ? '🚗' : isLast ? '🏁' : '📍');
+
+      const marker = L.marker([waypoint.lat, waypoint.lon], {
+        icon: createWeatherIcon(emoji, isFirst, isLast),
+      }).addTo(mapRef.current);
+
+      // Create popup content
+      let popupContent = `
+        <div style="min-width: 150px; font-family: system-ui, sans-serif;">
+          <p style="font-weight: 600; margin: 0 0 4px 0;">${waypoint.name}</p>
+          <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 0.875rem;">${formatTime(waypoint.arrivalTime)}</p>
+      `;
+
+      if (weather) {
+        popupContent += `
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem;">
+            <p style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 1.25rem;">${getWeatherIcon(weather.weatherSymbol)}</span>
+              <span>${getWeatherDescription(weather.weatherSymbol)}</span>
+            </p>
+            <p style="margin: 0;">🌡️ ${weather.temperature.toFixed(1)}°C</p>
+            <p style="margin: 0;">💨 ${weather.windSpeed.toFixed(1)} m/s</p>
+            ${weather.precipitationIntensity > 0 ? `<p style="margin: 0;">💧 ${weather.precipitationIntensity.toFixed(1)} mm/h</p>` : ''}
+          </div>
+        `;
+      }
+
+      popupContent += '</div>';
+
+      marker.bindPopup(popupContent);
+      markersRef.current.push(marker);
+    });
+  }, [routeGeometry, waypoints, weatherData]);
+
   return (
     <div className="relative w-full h-[400px] rounded-lg overflow-hidden card-shadow animate-slide-up">
-      <MapContainer
-        center={defaultCenter}
-        zoom={defaultZoom}
-        className="w-full h-full z-0"
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {bounds && <FitBounds bounds={bounds} />}
-        
-        {/* Route polyline */}
-        {routeGeometry.length > 0 && (
-          <Polyline
-            positions={routeGeometry}
-            pathOptions={{
-              color: '#3b82f6',
-              weight: 4,
-              opacity: 0.8,
-            }}
-          />
-        )}
-        
-        {/* Waypoint markers with weather icons */}
-        {waypoints.map((waypoint, index) => {
-          const weather = weatherData.get(index);
-          const isFirst = index === 0;
-          const isLast = index === waypoints.length - 1;
-          const emoji = weather ? getWeatherIcon(weather.weatherSymbol) : (isFirst ? '🚗' : isLast ? '🏁' : '📍');
-          
-          return (
-            <Marker
-              key={index}
-              position={[waypoint.lat, waypoint.lon]}
-              icon={createWeatherIcon(emoji, isFirst, isLast)}
-            >
-              <Popup>
-                <div className="text-sm min-w-[150px]">
-                  <p className="font-semibold text-foreground">{waypoint.name}</p>
-                  <p className="text-muted-foreground">{formatTime(waypoint.arrivalTime)}</p>
-                  {weather && (
-                    <div className="mt-2 space-y-1">
-                      <p className="flex items-center gap-2">
-                        <span className="text-lg">{getWeatherIcon(weather.weatherSymbol)}</span>
-                        <span>{getWeatherDescription(weather.weatherSymbol)}</span>
-                      </p>
-                      <p>🌡️ {weather.temperature.toFixed(1)}°C</p>
-                      <p>💨 {weather.windSpeed.toFixed(1)} m/s</p>
-                      {weather.precipitationIntensity > 0 && (
-                        <p>💧 {weather.precipitationIntensity.toFixed(1)} mm/h</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
+      <div ref={mapContainerRef} className="w-full h-full z-0" />
       
       {/* Map legend */}
       <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg px-3 py-2 text-xs shadow-md z-[1000]">
