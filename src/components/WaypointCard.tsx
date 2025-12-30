@@ -1,6 +1,7 @@
 import { Thermometer, Droplets, Wind, Eye, AlertTriangle, Loader2, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { 
   getWeatherIcon, 
@@ -109,31 +110,61 @@ export const WaypointCard = ({
                   {getWeatherDescription(weather.weatherSymbol)}
                 </p>
                 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Thermometer className="h-4 w-4 text-primary" />
-                    <span>{weather.temperature.toFixed(1)}°C</span>
+                <TooltipProvider>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
+                          <Thermometer className="h-4 w-4 text-primary" />
+                          <span>{weather.temperature.toFixed(1)}°C</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Air temperature</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
+                          <Wind className="h-4 w-4 text-primary" />
+                          <span>{weather.windSpeed.toFixed(1)} m/s</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Wind speed (meters per second)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    {weather.precipitationIntensity > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-2 text-muted-foreground cursor-help">
+                            <Droplets className="h-4 w-4 text-primary" />
+                            <span>
+                              {getPrecipitationType(weather.precipitationType, weather.temperature)} {weather.precipitationIntensity.toFixed(1)} mm/h
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Precipitation intensity (millimeters per hour)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
+                          <Eye className="h-4 w-4 text-primary" />
+                          <span>{weather.visibility.toFixed(1)} km</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Visibility distance</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Wind className="h-4 w-4 text-primary" />
-                    <span>{weather.windSpeed.toFixed(1)} m/s</span>
-                  </div>
-                  
-                  {weather.precipitationIntensity > 0 && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Droplets className="h-4 w-4 text-primary" />
-                      <span>
-                        {getPrecipitationType(weather.precipitationType, weather.temperature)} {weather.precipitationIntensity.toFixed(1)} mm/h
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Eye className="h-4 w-4 text-primary" />
-                    <span>{weather.visibility.toFixed(1)} km</span>
-                  </div>
-                </div>
+                </TooltipProvider>
                 
                 {warnings.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1">
