@@ -59,24 +59,21 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">From</label>
+            <div>
               <CityAutocomplete
                 value={from}
                 onChange={setFrom}
                 placeholder="Departure city"
-                iconColor="text-muted-foreground"
+                label="From"
               />
             </div>
             
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">To</label>
+            <div>
               <CityAutocomplete
                 value={to}
                 onChange={setTo}
                 placeholder="Destination city"
-                iconColor="text-primary"
+                label="To"
               />
             </div>
             

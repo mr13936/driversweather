@@ -11,6 +11,7 @@ interface CityAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  label: string;
   iconColor?: string;
 }
 
@@ -18,6 +19,7 @@ export const CityAutocomplete = ({
   value, 
   onChange, 
   placeholder, 
+  label,
   iconColor = 'text-muted-foreground' 
 }: CityAutocompleteProps) => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -116,20 +118,24 @@ export const CityAutocomplete = ({
 
   return (
     <div ref={containerRef} className="relative">
-      <MapPin className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${iconColor}`} />
-      <Input
-        value={value}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onFocus={() => value.length >= 2 && setShowSuggestions(true)}
-        placeholder={placeholder}
-        className="pl-10"
-        required
-        autoComplete="off"
-      />
-      {isLoading && (
-        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-      )}
+      <div className="relative rounded-lg border border-input bg-background transition-colors focus-within:border-primary">
+        <label className="absolute left-3 top-2 text-xs font-medium text-muted-foreground">
+          {label}
+        </label>
+        <Input
+          value={value}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => value.length >= 2 && setShowSuggestions(true)}
+          placeholder={placeholder}
+          className="border-0 pt-6 pb-2 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+          required
+          autoComplete="off"
+        />
+        {isLoading && (
+          <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+        )}
+      </div>
       
       {showSuggestions && suggestions.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-60 overflow-auto">
