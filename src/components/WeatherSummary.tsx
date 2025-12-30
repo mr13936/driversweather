@@ -108,6 +108,19 @@ const getMinutesFromStart = (waypoint: Waypoint, startTime: Date): number => {
   return (waypoint.arrivalTime.getTime() - startTime.getTime()) / (1000 * 60);
 };
 
+const isUnnamedLocation = (name: string): boolean => {
+  const unnamed = ['unnamed road', 'en route', 'unnamed', ''];
+  return unnamed.includes(name.toLowerCase().trim());
+};
+
+const formatLocationWithTime = (location: string, minutes: number): string => {
+  const timeStr = formatDuration(minutes);
+  if (isUnnamedLocation(location)) {
+    return `around ${timeStr} into your trip`;
+  }
+  return `${location} (${timeStr} in)`;
+};
+
 const generateNarrative = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
@@ -186,11 +199,12 @@ const generateNarrative = (
       }
     } else if (index === segments.length - 1) {
       // Last segment - arrival
-      narrative.push(`${icon} As you approach ${segment.endLocation}, expect ${conditions}.`);
+      const locationRef = formatLocationWithTime(segment.endLocation, segment.startMinutes);
+      narrative.push(`${icon} As you approach ${locationRef}, expect ${conditions}.`);
     } else {
       // Middle segments
-      const prevSegment = segments[index - 1];
-      narrative.push(`${icon} After ${prevSegment.endLocation}, the weather will change to ${conditions}.`);
+      const locationRef = formatLocationWithTime(segment.startLocation, segment.startMinutes);
+      narrative.push(`${icon} After ${locationRef}, the weather will change to ${conditions}.`);
     }
   });
 
