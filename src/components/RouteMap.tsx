@@ -78,6 +78,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const lastRouteRef = useRef<string>(''); // Track route changes
   const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_WAYPOINTS);
 
   const formatTime = (date: Date) => {
@@ -138,6 +139,9 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     }
 
     // Add route polyline
+    const routeKey = JSON.stringify(routeGeometry.slice(0, 5)); // Simple check for route changes
+    const isNewRoute = routeKey !== lastRouteRef.current;
+    
     if (routeGeometry.length > 0) {
       polylineRef.current = L.polyline(routeGeometry, {
         color: '#3b82f6',
@@ -145,9 +149,12 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
         opacity: 0.8,
       }).addTo(mapRef.current);
 
-      // Fit bounds to route
-      const bounds = L.latLngBounds(routeGeometry);
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      // Only fit bounds when the route itself changes, not on zoom/visibleCount changes
+      if (isNewRoute) {
+        lastRouteRef.current = routeKey;
+        const bounds = L.latLngBounds(routeGeometry);
+        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      }
     }
 
     // Get filtered waypoint indices
