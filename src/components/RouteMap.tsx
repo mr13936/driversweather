@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Waypoint, WeatherData } from '@/lib/apiUtils';
-import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
+import { getWeatherIcon, getWeatherDescription, isNightTime } from '@/lib/weatherUtils';
 
 // Fix for default marker icons in Leaflet with webpack/vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -112,8 +112,9 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       const weather = weatherData.get(index);
       const isFirst = index === 0;
       const isLast = index === waypoints.length - 1;
+      const isNight = weather ? isNightTime(waypoint.arrivalTime, weather.sunrise, weather.sunset) : false;
       const emoji = weather 
-        ? getWeatherIcon(weather.weatherSymbol) 
+        ? getWeatherIcon(weather.weatherSymbol, isNight) 
         : (isFirst ? '🚗' : isLast ? '🏁' : '📍');
 
       const marker = L.marker([waypoint.lat, waypoint.lon], {
@@ -131,7 +132,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
         popupContent += `
           <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem;">
             <p style="margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 1.25rem;">${getWeatherIcon(weather.weatherSymbol)}</span>
+              <span style="font-size: 1.25rem;">${getWeatherIcon(weather.weatherSymbol, isNight)}</span>
               <span>${getWeatherDescription(weather.weatherSymbol)}</span>
             </p>
             <p style="margin: 0;">🌡️ ${weather.temperature.toFixed(1)}°C</p>
