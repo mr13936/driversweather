@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, CloudSun } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CloudSun, Sunrise, Sunset } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
@@ -121,6 +121,72 @@ const formatLocationWithTime = (location: string, minutes: number): string => {
   return `${location} (${timeStr} in)`;
 };
 
+interface DaylightEvent {
+  type: 'sunrise' | 'sunset';
+  time: Date;
+  minutesFromStart: number;
+  location: string;
+}
+
+const findDaylightEvents = (
+  waypoints: Waypoint[],
+  weatherData: Map<number, WeatherData | null>,
+  startTime: Date
+): DaylightEvent[] => {
+  const events: DaylightEvent[] = [];
+  const seenEvents = new Set<string>();
+  
+  waypoints.forEach((waypoint, index) => {
+    const weather = weatherData.get(index);
+    if (!weather) return;
+    
+    const tripStart = startTime.getTime();
+    const tripEnd = waypoints[waypoints.length - 1].arrivalTime.getTime();
+    
+    // Check sunrise
+    if (weather.sunrise) {
+      const sunriseTime = weather.sunrise.getTime();
+      const key = `sunrise-${weather.sunrise.toISOString().split('T')[0]}`;
+      if (sunriseTime >= tripStart && sunriseTime <= tripEnd && !seenEvents.has(key)) {
+        seenEvents.add(key);
+        events.push({
+          type: 'sunrise',
+          time: weather.sunrise,
+          minutesFromStart: (sunriseTime - tripStart) / (1000 * 60),
+          location: waypoint.name
+        });
+      }
+    }
+    
+    // Check sunset
+    if (weather.sunset) {
+      const sunsetTime = weather.sunset.getTime();
+      const key = `sunset-${weather.sunset.toISOString().split('T')[0]}`;
+      if (sunsetTime >= tripStart && sunsetTime <= tripEnd && !seenEvents.has(key)) {
+        seenEvents.add(key);
+        events.push({
+          type: 'sunset',
+          time: weather.sunset,
+          minutesFromStart: (sunsetTime - tripStart) / (1000 * 60),
+          location: waypoint.name
+        });
+      }
+    }
+  });
+  
+  return events.sort((a, b) => a.minutesFromStart - b.minutesFromStart);
+};
+
+const formatTime = (date: Date): string => {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const isDaytime = (time: Date, sunrise: Date | null, sunset: Date | null): boolean => {
+  if (!sunrise || !sunset) return true; // Assume daytime if no data
+  const t = time.getTime();
+  return t >= sunrise.getTime() && t <= sunset.getTime();
+};
+
 const generateNarrative = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
@@ -130,6 +196,14 @@ const generateNarrative = (
   if (waypoints.length < 2) return narrative;
 
   const startTime = waypoints[0].arrivalTime;
+  const endTime = waypoints[waypoints.length - 1].arrivalTime;
+  
+  // Get daylight events
+  const daylightEvents = findDaylightEvents(waypoints, weatherData, startTime);
+  
+  // Check initial daylight status
+  const firstWeather = weatherData.get(0);
+  const startsDuringDay = firstWeather ? isDaytime(startTime, firstWeather.sunrise, firstWeather.sunset) : true;
 
   // Group waypoints by similar weather conditions
   interface WeatherSegment {
@@ -180,6 +254,11 @@ const generateNarrative = (
     segments.push(currentSegment);
   }
 
+  // Add initial daylight context
+  if (!startsDuringDay) {
+    narrative.push('🌙 You\'ll be starting your journey in darkness.');
+  }
+
   // Generate narrative for each segment
   segments.forEach((segment, index) => {
     const icon = getWeatherIcon(segment.weather.weatherSymbol);
@@ -206,6 +285,23 @@ const generateNarrative = (
       const locationRef = formatLocationWithTime(segment.startLocation, segment.startMinutes);
       narrative.push(`${icon} After ${locationRef}, the weather will change to ${conditions}.`);
     }
+    
+    // Add daylight events that occur during this segment
+    daylightEvents.forEach(event => {
+      if (event.minutesFromStart >= segment.startMinutes && 
+          (index === segments.length - 1 || event.minutesFromStart < segments[index + 1]?.startMinutes)) {
+        const timeStr = formatTime(event.time);
+        const locationRef = isUnnamedLocation(event.location) 
+          ? `around ${formatDuration(event.minutesFromStart)} into your trip`
+          : `near ${event.location}`;
+        
+        if (event.type === 'sunrise') {
+          narrative.push(`🌅 Sunrise at ${timeStr} ${locationRef}. Daylight driving conditions ahead.`);
+        } else {
+          narrative.push(`🌇 Sunset at ${timeStr} ${locationRef}. You'll continue in darkness after this.`);
+        }
+      }
+    });
   });
 
   // Add arrival summary
@@ -214,7 +310,9 @@ const generateNarrative = (
   if (lastWeather && lastWaypoint) {
     const icon = getWeatherIcon(lastWeather.weatherSymbol);
     const temp = lastWeather.temperature.toFixed(0);
-    narrative.push(`${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.`);
+    const arrivalDaylight = isDaytime(endTime, lastWeather.sunrise, lastWeather.sunset);
+    const daylightNote = arrivalDaylight ? '' : ' It will be dark when you arrive.';
+    narrative.push(`${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.${daylightNote}`);
   }
 
   return narrative;
