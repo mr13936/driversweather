@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, CloudRain, Wind, Eye, Thermometer } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CloudSun } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
@@ -8,62 +8,202 @@ interface WeatherSummaryProps {
   weatherData: Map<number, WeatherData | null>;
 }
 
-interface WorstConditions {
-  lowestTemp: { value: number; location: string } | null;
-  highestWind: { value: number; location: string } | null;
-  lowestVisibility: { value: number; location: string } | null;
-  heaviestPrecip: { value: number; location: string } | null;
-  worstWeather: { symbol: number; location: string } | null;
-}
+type SeverityLevel = 'good' | 'caution' | 'warning';
 
-const analyzeConditions = (
+const assessOverallSeverity = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
-): WorstConditions => {
-  const conditions: WorstConditions = {
-    lowestTemp: null,
-    highestWind: null,
-    lowestVisibility: null,
-    heaviestPrecip: null,
-    worstWeather: null,
-  };
+): SeverityLevel => {
+  let hasWarning = false;
+  let hasCaution = false;
+
+  waypoints.forEach((_, index) => {
+    const weather = weatherData.get(index);
+    if (!weather) return;
+
+    // Warning conditions
+    if (
+      weather.windSpeed > 15 ||
+      weather.visibility < 5 ||
+      weather.precipitationIntensity > 3 ||
+      weather.temperature < -10 ||
+      weather.weatherSymbol >= 20 // Heavy rain/snow/thunder
+    ) {
+      hasWarning = true;
+    }
+    // Caution conditions
+    else if (
+      weather.windSpeed > 10 ||
+      weather.visibility < 10 ||
+      weather.precipitationIntensity > 1 ||
+      weather.temperature < 0 ||
+      weather.weatherSymbol >= 10 // Light rain/snow
+    ) {
+      hasCaution = true;
+    }
+  });
+
+  if (hasWarning) return 'warning';
+  if (hasCaution) return 'caution';
+  return 'good';
+};
+
+const getOverallMessage = (severity: SeverityLevel): string => {
+  switch (severity) {
+    case 'good':
+      return 'No extreme weather expected for your trip. Conditions look favorable for driving.';
+    case 'caution':
+      return 'Some potential weather concerns along your route. Drive with care.';
+    case 'warning':
+      return 'Expect some difficult weather conditions. Consider adjusting your travel plans if possible.';
+  }
+};
+
+const describeConditions = (weather: WeatherData): string => {
+  const conditions: string[] = [];
+  
+  const weatherDesc = getWeatherDescription(weather.weatherSymbol).toLowerCase();
+  conditions.push(weatherDesc);
+  
+  if (weather.temperature < -5) {
+    conditions.push(`very cold (${weather.temperature.toFixed(0)}°C)`);
+  } else if (weather.temperature < 0) {
+    conditions.push(`cold (${weather.temperature.toFixed(0)}°C)`);
+  } else if (weather.temperature > 30) {
+    conditions.push(`hot (${weather.temperature.toFixed(0)}°C)`);
+  }
+  
+  if (weather.windSpeed > 15) {
+    conditions.push('strong winds');
+  } else if (weather.windSpeed > 10) {
+    conditions.push('moderate winds');
+  }
+  
+  if (weather.visibility < 5) {
+    conditions.push('reduced visibility');
+  }
+  
+  if (weather.precipitationIntensity > 3) {
+    conditions.push('heavy precipitation');
+  } else if (weather.precipitationIntensity > 1) {
+    conditions.push('light precipitation');
+  }
+  
+  return conditions.join(', ');
+};
+
+const formatDuration = (minutes: number): string => {
+  if (minutes < 60) {
+    return `${Math.round(minutes)} minutes`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (mins === 0) {
+    return hours === 1 ? '1 hour' : `${hours} hours`;
+  }
+  return hours === 1 ? `1 hour ${mins} min` : `${hours} hours ${mins} min`;
+};
+
+const getMinutesFromStart = (waypoint: Waypoint, startTime: Date): number => {
+  return (waypoint.arrivalTime.getTime() - startTime.getTime()) / (1000 * 60);
+};
+
+const generateNarrative = (
+  waypoints: Waypoint[],
+  weatherData: Map<number, WeatherData | null>
+): string[] => {
+  const narrative: string[] = [];
+  
+  if (waypoints.length < 2) return narrative;
+
+  const startTime = waypoints[0].arrivalTime;
+
+  // Group waypoints by similar weather conditions
+  interface WeatherSegment {
+    startIndex: number;
+    endIndex: number;
+    startMinutes: number;
+    endMinutes: number;
+    weather: WeatherData;
+    startLocation: string;
+    endLocation: string;
+  }
+
+  const segments: WeatherSegment[] = [];
+  let currentSegment: WeatherSegment | null = null;
 
   waypoints.forEach((waypoint, index) => {
     const weather = weatherData.get(index);
     if (!weather) return;
 
-    if (!conditions.lowestTemp || weather.temperature < conditions.lowestTemp.value) {
-      conditions.lowestTemp = { value: weather.temperature, location: waypoint.name };
-    }
+    const minutesFromStart = getMinutesFromStart(waypoint, startTime);
 
-    if (!conditions.highestWind || weather.windSpeed > conditions.highestWind.value) {
-      conditions.highestWind = { value: weather.windSpeed, location: waypoint.name };
-    }
+    const shouldStartNewSegment = !currentSegment || 
+      Math.abs(weather.weatherSymbol - currentSegment.weather.weatherSymbol) > 3 ||
+      Math.abs(weather.precipitationIntensity - currentSegment.weather.precipitationIntensity) > 1 ||
+      Math.abs(weather.temperature - currentSegment.weather.temperature) > 5;
 
-    if (!conditions.lowestVisibility || weather.visibility < conditions.lowestVisibility.value) {
-      conditions.lowestVisibility = { value: weather.visibility, location: waypoint.name };
-    }
-
-    if (!conditions.heaviestPrecip || weather.precipitationIntensity > conditions.heaviestPrecip.value) {
-      conditions.heaviestPrecip = { value: weather.precipitationIntensity, location: waypoint.name };
-    }
-
-    // Higher weather symbols generally mean worse conditions
-    if (!conditions.worstWeather || weather.weatherSymbol > conditions.worstWeather.symbol) {
-      conditions.worstWeather = { symbol: weather.weatherSymbol, location: waypoint.name };
+    if (shouldStartNewSegment) {
+      if (currentSegment) {
+        segments.push(currentSegment);
+      }
+      currentSegment = {
+        startIndex: index,
+        endIndex: index,
+        startMinutes: minutesFromStart,
+        endMinutes: minutesFromStart,
+        weather,
+        startLocation: waypoint.name,
+        endLocation: waypoint.name,
+      };
+    } else if (currentSegment) {
+      currentSegment.endIndex = index;
+      currentSegment.endMinutes = minutesFromStart;
+      currentSegment.endLocation = waypoint.name;
     }
   });
 
-  return conditions;
-};
+  if (currentSegment) {
+    segments.push(currentSegment);
+  }
 
-const hasWarnings = (conditions: WorstConditions): boolean => {
-  return (
-    (conditions.highestWind?.value ?? 0) > 10 ||
-    (conditions.lowestVisibility?.value ?? 50) < 10 ||
-    (conditions.heaviestPrecip?.value ?? 0) > 1 ||
-    (conditions.lowestTemp?.value ?? 20) < 0
-  );
+  // Generate narrative for each segment
+  segments.forEach((segment, index) => {
+    const icon = getWeatherIcon(segment.weather.weatherSymbol);
+    const conditions = describeConditions(segment.weather);
+    
+    if (index === 0) {
+      // First segment
+      if (segments.length === 1) {
+        narrative.push(`${icon} Throughout your journey, expect ${conditions}. Conditions remain consistent all the way to your destination.`);
+      } else {
+        const duration = formatDuration(segment.endMinutes - segment.startMinutes);
+        if (segment.endMinutes < 30) {
+          narrative.push(`${icon} Your trip begins with ${conditions}.`);
+        } else {
+          narrative.push(`${icon} The first ${duration} of your trip will see ${conditions}.`);
+        }
+      }
+    } else if (index === segments.length - 1) {
+      // Last segment - arrival
+      narrative.push(`${icon} As you approach ${segment.endLocation}, expect ${conditions}.`);
+    } else {
+      // Middle segments
+      const prevSegment = segments[index - 1];
+      narrative.push(`${icon} After ${prevSegment.endLocation}, the weather will change to ${conditions}.`);
+    }
+  });
+
+  // Add arrival summary
+  const lastWeather = weatherData.get(waypoints.length - 1);
+  const lastWaypoint = waypoints[waypoints.length - 1];
+  if (lastWeather && lastWaypoint) {
+    const icon = getWeatherIcon(lastWeather.weatherSymbol);
+    const temp = lastWeather.temperature.toFixed(0);
+    narrative.push(`${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.`);
+  }
+
+  return narrative;
 };
 
 export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) => {
@@ -71,74 +211,53 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
   
   if (loadedCount === 0) return null;
 
-  const conditions = analyzeConditions(waypoints, weatherData);
-  const showWarning = hasWarnings(conditions);
+  const severity = assessOverallSeverity(waypoints, weatherData);
+  const overallMessage = getOverallMessage(severity);
+  const narrative = generateNarrative(waypoints, weatherData);
+
+  const getIcon = () => {
+    switch (severity) {
+      case 'warning':
+        return <AlertTriangle className="h-5 w-5" />;
+      case 'caution':
+        return <CloudSun className="h-5 w-5" />;
+      case 'good':
+        return <CheckCircle className="h-5 w-5" />;
+    }
+  };
+
+  const getTitle = () => {
+    switch (severity) {
+      case 'warning':
+        return 'Weather Alert';
+      case 'caution':
+        return 'Weather Advisory';
+      case 'good':
+        return 'Weather Overview';
+    }
+  };
 
   return (
     <Alert 
-      variant={showWarning ? "destructive" : "default"} 
+      variant={severity === 'warning' ? 'destructive' : 'default'} 
       className="animate-fade-in"
     >
-      {showWarning ? (
-        <AlertTriangle className="h-4 w-4" />
-      ) : (
-        <CheckCircle className="h-4 w-4" />
-      )}
-      <AlertTitle className="font-semibold">
-        {showWarning ? 'Weather Advisory' : 'Good Driving Conditions'}
+      {getIcon()}
+      <AlertTitle className="font-semibold text-base">
+        {getTitle()}
       </AlertTitle>
       <AlertDescription>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {conditions.lowestTemp && (
-            <div className="flex items-center gap-2 text-sm">
-              <Thermometer className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Low: <strong>{conditions.lowestTemp.value.toFixed(0)}°C</strong>
-                <span className="text-muted-foreground ml-1">at {conditions.lowestTemp.location}</span>
-              </span>
-            </div>
-          )}
-          
-          {conditions.highestWind && conditions.highestWind.value > 5 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Wind className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Wind: <strong>{conditions.highestWind.value.toFixed(0)} m/s</strong>
-                <span className="text-muted-foreground ml-1">at {conditions.highestWind.location}</span>
-              </span>
-            </div>
-          )}
-          
-          {conditions.lowestVisibility && conditions.lowestVisibility.value < 20 && (
-            <div className="flex items-center gap-2 text-sm">
-              <Eye className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Visibility: <strong>{conditions.lowestVisibility.value.toFixed(0)} km</strong>
-                <span className="text-muted-foreground ml-1">at {conditions.lowestVisibility.location}</span>
-              </span>
-            </div>
-          )}
-          
-          {conditions.heaviestPrecip && conditions.heaviestPrecip.value > 0 && (
-            <div className="flex items-center gap-2 text-sm">
-              <CloudRain className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Precip: <strong>{conditions.heaviestPrecip.value.toFixed(1)} mm/h</strong>
-                <span className="text-muted-foreground ml-1">at {conditions.heaviestPrecip.location}</span>
-              </span>
-            </div>
-          )}
-          
-          {conditions.worstWeather && (
-            <div className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-4">
-              <span className="text-base">{getWeatherIcon(conditions.worstWeather.symbol)}</span>
-              <span>
-                Expect <strong>{getWeatherDescription(conditions.worstWeather.symbol)}</strong>
-                <span className="text-muted-foreground ml-1">near {conditions.worstWeather.location}</span>
-              </span>
-            </div>
-          )}
-        </div>
+        <p className="mt-1 text-sm font-medium">{overallMessage}</p>
+        
+        {narrative.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {narrative.map((paragraph, index) => (
+              <p key={index} className="text-sm text-muted-foreground leading-relaxed">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        )}
       </AlertDescription>
     </Alert>
   );
