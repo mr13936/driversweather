@@ -47,39 +47,29 @@ const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => 
   });
 };
 
-// Filter waypoints based on density - always include first and last
-const filterWaypointsByDensity = (
+const MAX_WAYPOINTS_IN_VIEW = 10;
+
+// Filter waypoints to show max N evenly distributed from those in bounds
+const filterWaypointsInBounds = (
   waypoints: Waypoint[], 
-  visibleInBounds: number[]
+  visibleInBounds: number[],
+  maxInView: number
 ): number[] => {
-  const totalVisible = visibleInBounds.length;
-  
-  // Determine divisor based on how many waypoints are in view
-  let divisor = 1; // Show all by default
-  if (totalVisible > 20) {
-    divisor = 4; // Show every 4th
-  } else if (totalVisible > 10) {
-    divisor = 2; // Show every 2nd
-  }
-  
-  if (divisor === 1) {
+  // If 10 or fewer in view, show them all
+  if (visibleInBounds.length <= maxInView) {
     return visibleInBounds;
   }
   
-  // Filter indices, always keeping first and last
+  // More than max in view - evenly distribute
   const filtered: number[] = [];
+  const step = (visibleInBounds.length - 1) / (maxInView - 1);
   
-  visibleInBounds.forEach((originalIndex, i) => {
-    const isFirst = originalIndex === 0;
-    const isLast = originalIndex === waypoints.length - 1;
-    
-    // Always include first and last, or every Nth waypoint
-    if (isFirst || isLast || i % divisor === 0) {
-      filtered.push(originalIndex);
-    }
-  });
+  for (let i = 0; i < maxInView; i++) {
+    const idx = Math.round(i * step);
+    filtered.push(visibleInBounds[idx]);
+  }
   
-  return filtered;
+  return [...new Set(filtered)].sort((a, b) => a - b);
 };
 
 export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProps) => {
@@ -171,13 +161,13 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       }
     });
     
-    // Filter based on density (>10 = every 2nd, >20 = every 4th)
-    const filteredIndices = filterWaypointsByDensity(waypoints, visibleInBounds);
+    // Filter to max 10 waypoints in view, evenly distributed
+    const filteredIndices = filterWaypointsInBounds(waypoints, visibleInBounds, MAX_WAYPOINTS_IN_VIEW);
     
-    // Also always include waypoints outside bounds that are first/last
+    // Always include start and end even if outside current view
     const indicesToShow = new Set(filteredIndices);
-    indicesToShow.add(0); // Always show start
-    indicesToShow.add(waypoints.length - 1); // Always show end
+    indicesToShow.add(0);
+    indicesToShow.add(waypoints.length - 1);
     
     const finalIndices = Array.from(indicesToShow).sort((a, b) => a - b);
     
