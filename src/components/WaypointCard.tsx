@@ -117,11 +117,11 @@ export const WaypointCard = ({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="font-semibold text-foreground truncate">
-                  {waypoint.name}
-                </p>
                 <p className="text-sm text-muted-foreground">
                   {formatTime(waypoint.arrivalTime)} • {Math.round(waypoint.distanceFromStart)} km
+                </p>
+                <p className="font-semibold text-foreground truncate">
+                  {waypoint.name}
                 </p>
               </div>
               
