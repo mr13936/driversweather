@@ -10,53 +10,115 @@ interface WeatherSummaryProps {
 
 type SeverityLevel = 'good' | 'caution' | 'warning';
 
-const assessOverallSeverity = (
+interface TripAssessment {
+  severity: SeverityLevel;
+  isLongTrip: boolean;
+  hasMixedConditions: boolean;
+  warningCount: number;
+  cautionCount: number;
+  totalPoints: number;
+}
+
+const assessTrip = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
-): SeverityLevel => {
-  let hasWarning = false;
-  let hasCaution = false;
+): TripAssessment => {
+  let warningCount = 0;
+  let cautionCount = 0;
+  let totalPoints = 0;
+  let hasPrecipitation = false;
+  let hasClearWeather = false;
 
   waypoints.forEach((_, index) => {
     const weather = weatherData.get(index);
     if (!weather) return;
+    totalPoints++;
 
-    // Warning conditions
+    // Focus primarily on precipitation for driving conditions
+    const hasDangerousPrecipitation = weather.precipitationIntensity > 4 || 
+      (weather.weatherSymbol >= 20 && weather.weatherSymbol <= 27); // Heavy rain/snow/thunder
+    
+    const hasModeratePrecipitation = weather.precipitationIntensity > 2 ||
+      (weather.weatherSymbol >= 10 && weather.weatherSymbol <= 19); // Moderate rain/snow
+    
+    const hasLightPrecipitation = weather.precipitationIntensity > 0.5 ||
+      (weather.weatherSymbol >= 8 && weather.weatherSymbol < 10);
+
+    // Track if there's precipitation or clear weather
+    if (hasDangerousPrecipitation || hasModeratePrecipitation || hasLightPrecipitation) {
+      hasPrecipitation = true;
+    }
+    if (weather.precipitationIntensity < 0.5 && weather.weatherSymbol < 8) {
+      hasClearWeather = true;
+    }
+
+    // Warning: Only for actually dangerous driving conditions
     if (
-      weather.windSpeed > 15 ||
-      weather.visibility < 5 ||
-      weather.precipitationIntensity > 3 ||
-      weather.temperature < -10 ||
-      weather.weatherSymbol >= 20 // Heavy rain/snow/thunder
+      hasDangerousPrecipitation ||
+      weather.visibility < 3 ||
+      weather.windSpeed > 20
     ) {
-      hasWarning = true;
+      warningCount++;
     }
-    // Caution conditions
+    // Caution: Moderate precipitation or notably reduced visibility
     else if (
-      weather.windSpeed > 10 ||
-      weather.visibility < 10 ||
-      weather.precipitationIntensity > 1 ||
-      weather.temperature < 0 ||
-      weather.weatherSymbol >= 10 // Light rain/snow
+      hasModeratePrecipitation ||
+      weather.visibility < 5 ||
+      weather.windSpeed > 15
     ) {
-      hasCaution = true;
+      cautionCount++;
     }
+    // Note: Cold weather alone (even below 0) is NOT a caution - roads are treated in winter
   });
 
-  if (hasWarning) return 'warning';
-  if (hasCaution) return 'caution';
-  return 'good';
+  // Calculate trip duration in hours
+  const tripDurationMs = waypoints.length >= 2 
+    ? waypoints[waypoints.length - 1].arrivalTime.getTime() - waypoints[0].arrivalTime.getTime()
+    : 0;
+  const tripDurationHours = tripDurationMs / (1000 * 60 * 60);
+  const isLongTrip = tripDurationHours > 3;
+  const hasMixedConditions = hasPrecipitation && hasClearWeather;
+
+  // Determine overall severity based on proportion of bad conditions
+  let severity: SeverityLevel = 'good';
+  
+  if (warningCount > 0) {
+    // Only warning if significant portion has dangerous conditions
+    severity = warningCount >= totalPoints * 0.3 ? 'warning' : 'caution';
+  } else if (cautionCount > 0) {
+    // Only caution if moderate precipitation affects a notable portion
+    severity = cautionCount >= totalPoints * 0.4 ? 'caution' : 'good';
+  }
+
+  return { severity, isLongTrip, hasMixedConditions, warningCount, cautionCount, totalPoints };
 };
 
-const getOverallMessage = (severity: SeverityLevel): string => {
-  switch (severity) {
-    case 'good':
-      return 'No extreme weather expected for your trip. Conditions look favorable for driving.';
-    case 'caution':
-      return 'Some potential weather concerns along your route. Drive with care.';
-    case 'warning':
-      return 'Expect some difficult weather conditions. Consider adjusting your travel plans if possible.';
+const getOverallMessage = (assessment: TripAssessment): string => {
+  const { severity, isLongTrip, hasMixedConditions, warningCount, totalPoints } = assessment;
+
+  if (severity === 'good') {
+    if (isLongTrip) {
+      return 'Good driving conditions expected throughout your journey. No significant weather disruptions forecast.';
+    }
+    return 'Conditions look favorable for driving. Have a safe trip!';
   }
+
+  if (severity === 'caution') {
+    if (isLongTrip && hasMixedConditions) {
+      return 'Your route passes through varying weather. Expect some precipitation along parts of the journey, but conditions are manageable overall.';
+    }
+    if (hasMixedConditions) {
+      return 'Some precipitation expected along parts of your route. Conditions are mostly manageable.';
+    }
+    return 'Some precipitation expected. Drive with care.';
+  }
+
+  // Warning severity
+  if (isLongTrip && hasMixedConditions) {
+    const badPortion = Math.round((warningCount / totalPoints) * 100);
+    return `Expect challenging weather for about ${badPortion}% of your route. Consider timing your departure to avoid the worst conditions.`;
+  }
+  return 'Significant precipitation expected. Allow extra time and drive carefully.';
 };
 
 const describeConditions = (weather: WeatherData): string => {
@@ -95,28 +157,28 @@ const describeConditions = (weather: WeatherData): string => {
 type ConditionSeverity = 'none' | 'caution' | 'severe';
 
 const getConditionSeverity = (weather: WeatherData): ConditionSeverity => {
-  // Severe conditions (red warning)
+  // Severe conditions - focus on precipitation and visibility
   if (
-    weather.windSpeed > 15 ||
-    weather.visibility < 5 ||
-    weather.precipitationIntensity > 3 ||
-    weather.temperature < -10 ||
-    weather.weatherSymbol >= 20 // Heavy rain/snow/thunder
+    weather.precipitationIntensity > 4 ||
+    weather.visibility < 3 ||
+    weather.windSpeed > 20 ||
+    (weather.weatherSymbol >= 20 && weather.weatherSymbol <= 27) // Heavy rain/snow/thunder
   ) {
     return 'severe';
   }
   
-  // Caution conditions (yellow warning)
+  // Caution conditions - moderate precipitation
   if (
-    weather.windSpeed > 10 ||
-    weather.visibility < 10 ||
-    weather.precipitationIntensity > 1 ||
-    weather.temperature < 0 ||
-    weather.weatherSymbol >= 10
+    weather.precipitationIntensity > 2 ||
+    weather.visibility < 5 ||
+    weather.windSpeed > 15 ||
+    (weather.weatherSymbol >= 10 && weather.weatherSymbol <= 19) // Moderate rain/snow
   ) {
     return 'caution';
   }
   
+  // Cold weather alone is fine - roads are treated
+  // Clear sky with cold temps = good driving conditions
   return 'none';
 };
 
@@ -358,12 +420,12 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
   
   if (loadedCount === 0) return null;
 
-  const severity = assessOverallSeverity(waypoints, weatherData);
-  const overallMessage = getOverallMessage(severity);
+  const assessment = assessTrip(waypoints, weatherData);
+  const overallMessage = getOverallMessage(assessment);
   const narrative = generateNarrative(waypoints, weatherData);
 
   const getIcon = () => {
-    switch (severity) {
+    switch (assessment.severity) {
       case 'warning':
         return <AlertTriangle className="h-5 w-5" />;
       case 'caution':
@@ -374,7 +436,7 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
   };
 
   const getTitle = () => {
-    switch (severity) {
+    switch (assessment.severity) {
       case 'warning':
         return 'Weather Alert';
       case 'caution':
@@ -386,7 +448,7 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
 
   return (
     <Alert 
-      variant={severity === 'warning' ? 'destructive' : 'default'} 
+      variant={assessment.severity === 'warning' ? 'destructive' : 'default'} 
       className="animate-fade-in"
     >
       {getIcon()}
