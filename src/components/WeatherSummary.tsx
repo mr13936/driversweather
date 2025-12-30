@@ -92,6 +92,16 @@ const describeConditions = (weather: WeatherData): string => {
   return conditions.join(', ');
 };
 
+const isDifficultConditions = (weather: WeatherData): boolean => {
+  return (
+    weather.windSpeed > 10 ||
+    weather.visibility < 10 ||
+    weather.precipitationIntensity > 1 ||
+    weather.temperature < 0 ||
+    weather.weatherSymbol >= 10
+  );
+};
+
 const formatDuration = (minutes: number): string => {
   if (minutes < 60) {
     return `${Math.round(minutes)} minutes`;
@@ -187,11 +197,16 @@ const isDaytime = (time: Date, sunrise: Date | null, sunset: Date | null): boole
   return t >= sunrise.getTime() && t <= sunset.getTime();
 };
 
+interface NarrativeLine {
+  text: string;
+  isDifficult: boolean;
+}
+
 const generateNarrative = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
-): string[] => {
-  const narrative: string[] = [];
+): NarrativeLine[] => {
+  const narrative: NarrativeLine[] = [];
   
   if (waypoints.length < 2) return narrative;
 
@@ -256,34 +271,35 @@ const generateNarrative = (
 
   // Add initial daylight context
   if (!startsDuringDay) {
-    narrative.push('🌙 You\'ll be starting your journey in darkness.');
+    narrative.push({ text: '🌙 You\'ll be starting your journey in darkness.', isDifficult: false });
   }
 
   // Generate narrative for each segment
   segments.forEach((segment, index) => {
     const icon = getWeatherIcon(segment.weather.weatherSymbol);
     const conditions = describeConditions(segment.weather);
+    const difficult = isDifficultConditions(segment.weather);
     
     if (index === 0) {
       // First segment
       if (segments.length === 1) {
-        narrative.push(`${icon} Throughout your journey, expect ${conditions}. Conditions remain consistent all the way to your destination.`);
+        narrative.push({ text: `${icon} Throughout your journey, expect ${conditions}. Conditions remain consistent all the way to your destination.`, isDifficult: difficult });
       } else {
         const duration = formatDuration(segment.endMinutes - segment.startMinutes);
         if (segment.endMinutes < 30) {
-          narrative.push(`${icon} Your trip begins with ${conditions}.`);
+          narrative.push({ text: `${icon} Your trip begins with ${conditions}.`, isDifficult: difficult });
         } else {
-          narrative.push(`${icon} The first ${duration} of your trip will see ${conditions}.`);
+          narrative.push({ text: `${icon} The first ${duration} of your trip will see ${conditions}.`, isDifficult: difficult });
         }
       }
     } else if (index === segments.length - 1) {
       // Last segment - arrival
       const locationRef = formatLocationWithTime(segment.endLocation, segment.startMinutes);
-      narrative.push(`${icon} As you approach ${locationRef}, expect ${conditions}.`);
+      narrative.push({ text: `${icon} As you approach ${locationRef}, expect ${conditions}.`, isDifficult: difficult });
     } else {
       // Middle segments
       const locationRef = formatLocationWithTime(segment.startLocation, segment.startMinutes);
-      narrative.push(`${icon} After ${locationRef}, the weather will change to ${conditions}.`);
+      narrative.push({ text: `${icon} After ${locationRef}, the weather will change to ${conditions}.`, isDifficult: difficult });
     }
     
     // Add daylight events that occur during this segment
@@ -296,9 +312,9 @@ const generateNarrative = (
           : `near ${event.location}`;
         
         if (event.type === 'sunrise') {
-          narrative.push(`🌅 Sunrise at ${timeStr} ${locationRef}. Daylight driving conditions ahead.`);
+          narrative.push({ text: `🌅 Sunrise at ${timeStr} ${locationRef}. Daylight driving conditions ahead.`, isDifficult: false });
         } else {
-          narrative.push(`🌇 Sunset at ${timeStr} ${locationRef}. You'll continue in darkness after this.`);
+          narrative.push({ text: `🌇 Sunset at ${timeStr} ${locationRef}. You'll continue in darkness after this.`, isDifficult: false });
         }
       }
     });
@@ -312,7 +328,8 @@ const generateNarrative = (
     const temp = lastWeather.temperature.toFixed(0);
     const arrivalDaylight = isDaytime(endTime, lastWeather.sunrise, lastWeather.sunset);
     const daylightNote = arrivalDaylight ? '' : ' It will be dark when you arrive.';
-    narrative.push(`${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.${daylightNote}`);
+    const difficult = isDifficultConditions(lastWeather);
+    narrative.push({ text: `${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.${daylightNote}`, isDifficult: difficult });
   }
 
   return narrative;
@@ -363,9 +380,10 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
         
         {narrative.length > 0 && (
           <div className="mt-3 space-y-2">
-            {narrative.map((paragraph, index) => (
-              <p key={index} className="text-sm text-muted-foreground leading-relaxed">
-                {paragraph}
+            {narrative.map((item, index) => (
+              <p key={index} className="text-sm text-muted-foreground leading-relaxed flex items-start gap-1">
+                <span>{item.text}</span>
+                {item.isDifficult && <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />}
               </p>
             ))}
           </div>
