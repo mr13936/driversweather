@@ -1,15 +1,9 @@
 import { useState } from 'react';
-import { Calendar, Navigation, Loader2, Info } from 'lucide-react';
+import { Calendar, Navigation, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CityAutocomplete } from './CityAutocomplete';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface RouteInputProps {
   onSubmit: (from: string, to: string, departureTime: Date) => void;
@@ -78,19 +72,6 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
             </div>
             
             <div className="space-y-2">
-              <label className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-                Departure Time
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground/70 hover:text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Weather forecasts available up to 7 days ahead</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
