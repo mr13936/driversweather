@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Cloud, Car } from 'lucide-react';
+import { Cloud } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { RouteInput } from '@/components/RouteInput';
 import { RouteSummary } from '@/components/RouteSummary';
 import { RouteMap } from '@/components/RouteMap';
@@ -88,12 +89,12 @@ const Index = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Car className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-lg overflow-hidden">
+              <img src={logo} alt="Route Weather Planner" className="h-full w-full object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">Route Weather Planner</h1>
-              <p className="text-sm text-muted-foreground">Plan your Swedish road trip with weather forecasts</p>
+              <p className="text-sm text-muted-foreground">Plan your road trip with weather forecasts</p>
             </div>
           </div>
         </div>
