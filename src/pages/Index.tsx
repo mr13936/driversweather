@@ -4,6 +4,7 @@ import { RouteInput } from '@/components/RouteInput';
 import { RouteSummary } from '@/components/RouteSummary';
 import { RouteMap } from '@/components/RouteMap';
 import { WeatherTimeline } from '@/components/WeatherTimeline';
+import { WeatherSummary } from '@/components/WeatherSummary';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { 
   geocodeLocation, 
@@ -118,6 +119,11 @@ const Index = () => {
               departureTime={departureTime}
               fromName={fromName}
               toName={toName}
+            />
+            
+            <WeatherSummary
+              waypoints={waypoints}
+              weatherData={weatherData}
             />
             
             <RouteMap
