@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Waypoint, WeatherData } from '@/lib/apiUtils';
@@ -17,6 +17,8 @@ interface RouteMapProps {
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
 }
+
+const MAX_VISIBLE_WAYPOINTS = 10;
 
 // Create custom icon with weather emoji
 const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => {
@@ -47,11 +49,36 @@ const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => 
   });
 };
 
+// Filter waypoints to show max N evenly distributed points, always including first and last
+const filterWaypoints = (waypoints: Waypoint[], maxVisible: number): number[] => {
+  if (waypoints.length <= maxVisible) {
+    return waypoints.map((_, i) => i);
+  }
+
+  const indices: number[] = [0]; // Always include first
+  
+  // Calculate evenly spaced intermediate points
+  const intermediateCount = maxVisible - 2; // Subtract first and last
+  const step = (waypoints.length - 1) / (intermediateCount + 1);
+  
+  for (let i = 1; i <= intermediateCount; i++) {
+    const index = Math.round(step * i);
+    if (index > 0 && index < waypoints.length - 1) {
+      indices.push(index);
+    }
+  }
+  
+  indices.push(waypoints.length - 1); // Always include last
+  
+  return [...new Set(indices)].sort((a, b) => a - b);
+};
+
 export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_WAYPOINTS);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-GB', { 
@@ -59,6 +86,20 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       minute: '2-digit' 
     });
   };
+
+  // Calculate visible count based on zoom level
+  const updateVisibleCount = useCallback(() => {
+    if (!mapRef.current) return;
+    
+    const zoom = mapRef.current.getZoom();
+    // More waypoints visible when zoomed in, fewer when zoomed out
+    // zoom 5-6: ~6 waypoints, zoom 7-8: ~8, zoom 9+: ~10+
+    const count = Math.min(
+      waypoints.length,
+      Math.max(4, Math.floor(zoom * 1.2))
+    );
+    setVisibleCount(Math.min(count, MAX_VISIBLE_WAYPOINTS));
+  }, [waypoints.length]);
 
   // Initialize map
   useEffect(() => {
@@ -70,13 +111,17 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(mapRef.current);
 
+    // Listen for zoom changes
+    mapRef.current.on('zoomend', updateVisibleCount);
+
     return () => {
       if (mapRef.current) {
+        mapRef.current.off('zoomend', updateVisibleCount);
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [updateVisibleCount]);
 
   // Update route and markers when data changes
   useEffect(() => {
@@ -105,13 +150,17 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
 
-    // Add waypoint markers
-    waypoints.forEach((waypoint, index) => {
-      if (!mapRef.current) return;
+    // Get filtered waypoint indices
+    const visibleIndices = filterWaypoints(waypoints, visibleCount);
 
-      const weather = weatherData.get(index);
-      const isFirst = index === 0;
-      const isLast = index === waypoints.length - 1;
+    // Add waypoint markers only for visible indices
+    visibleIndices.forEach((originalIndex) => {
+      if (!mapRef.current) return;
+      
+      const waypoint = waypoints[originalIndex];
+      const weather = weatherData.get(originalIndex);
+      const isFirst = originalIndex === 0;
+      const isLast = originalIndex === waypoints.length - 1;
       const isNight = weather ? isNightTime(waypoint.arrivalTime, weather.sunrise, weather.sunset) : false;
       const emoji = weather 
         ? getWeatherIcon(weather.weatherSymbol, isNight) 
@@ -147,7 +196,10 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       marker.bindPopup(popupContent);
       markersRef.current.push(marker);
     });
-  }, [routeGeometry, waypoints, weatherData]);
+
+    // Update visible count based on current zoom
+    updateVisibleCount();
+  }, [routeGeometry, waypoints, weatherData, visibleCount, updateVisibleCount]);
 
   return (
     <div className="relative w-full h-[400px] rounded-lg overflow-hidden card-shadow animate-slide-up">
@@ -168,6 +220,11 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
             <span className="w-3 h-3 rounded-full bg-card border border-border"></span>
             Waypoint
           </span>
+          {waypoints.length > visibleCount && (
+            <span className="text-muted-foreground">
+              ({visibleCount}/{waypoints.length} shown)
+            </span>
+          )}
         </div>
       </div>
     </div>
