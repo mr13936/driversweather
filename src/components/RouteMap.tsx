@@ -115,7 +115,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       const isNight = weather ? isNightTime(waypoint.arrivalTime, weather.sunrise, weather.sunset) : false;
       const emoji = weather 
         ? getWeatherIcon(weather.weatherSymbol, isNight) 
-        : (isFirst ? '🚗' : isLast ? '🏁' : '📍');
+        : (isFirst ? '🚗' : isLast ? '🏁' : '⏳');
 
       const marker = L.marker([waypoint.lat, waypoint.lon], {
         icon: createWeatherIcon(emoji, isFirst, isLast),
