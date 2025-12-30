@@ -33,6 +33,8 @@ export interface WeatherData {
   windSpeed: number;
   visibility: number;
   weatherSymbol: number;
+  sunrise: Date | null;
+  sunset: Date | null;
 }
 
 // Geocode a location name to coordinates using Nominatim (worldwide)
@@ -169,7 +171,7 @@ export const getWeather = async (
   lon: number,
   targetTime: Date
 ): Promise<WeatherData> => {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,visibility&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,visibility&daily=sunrise,sunset&timezone=auto`;
   
   const response = await fetch(url);
   
@@ -193,6 +195,19 @@ export const getWeather = async (
     }
   }
   
+  // Find the sunrise/sunset for the target date
+  const targetDateStr = targetTime.toISOString().split('T')[0];
+  let sunrise: Date | null = null;
+  let sunset: Date | null = null;
+  
+  if (data.daily && data.daily.time) {
+    const dayIndex = data.daily.time.findIndex((d: string) => d === targetDateStr);
+    if (dayIndex !== -1) {
+      sunrise = data.daily.sunrise[dayIndex] ? new Date(data.daily.sunrise[dayIndex]) : null;
+      sunset = data.daily.sunset[dayIndex] ? new Date(data.daily.sunset[dayIndex]) : null;
+    }
+  }
+  
   // Map Open-Meteo weather codes to our weather symbol format
   const weatherCode = data.hourly.weather_code[closestIndex] || 0;
   const weatherSymbol = mapWeatherCodeToSymbol(weatherCode);
@@ -203,7 +218,9 @@ export const getWeather = async (
     precipitationIntensity: data.hourly.precipitation[closestIndex] || 0,
     windSpeed: data.hourly.wind_speed_10m[closestIndex] || 0,
     visibility: (data.hourly.visibility[closestIndex] || 50000) / 1000, // Convert to km
-    weatherSymbol
+    weatherSymbol,
+    sunrise,
+    sunset
   };
 };
 
