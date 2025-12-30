@@ -198,8 +198,8 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       // Create popup content
       let popupContent = `
         <div style="min-width: 150px; font-family: system-ui, sans-serif;">
-          <p style="font-weight: 600; margin: 0 0 4px 0;">${waypoint.name}</p>
-          <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 0.875rem;">${formatTime(waypoint.arrivalTime)}</p>
+          <p style="font-weight: 600; font-size: 1.125rem; margin: 0 0 2px 0;">${formatTime(waypoint.arrivalTime)}</p>
+          <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 0.875rem;">${waypoint.name}</p>
       `;
 
       if (weather) {
