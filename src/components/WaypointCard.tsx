@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Thermometer, Droplets, Wind, Eye, AlertTriangle, Loader2, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,13 +34,14 @@ const MouseTooltip = ({ text, children }: MouseTooltipProps) => {
       className="cursor-help"
     >
       {children}
-      {visible && (
+      {visible && createPortal(
         <div
-          className="fixed z-50 px-2 py-1 text-xs bg-popover text-popover-foreground border rounded shadow-md pointer-events-none"
+          className="fixed z-[9999] px-2 py-1 text-xs bg-popover text-popover-foreground border rounded shadow-md pointer-events-none"
           style={{ left: position.x, top: position.y }}
         >
           {text}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
