@@ -22,6 +22,18 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
     return now.toISOString().slice(0, 16);
   };
   
+  // Get min/max datetime for weather data availability (Open-Meteo provides ~7 days forecast)
+  const getMinDateTime = () => {
+    const now = new Date();
+    return now.toISOString().slice(0, 16);
+  };
+  
+  const getMaxDateTime = () => {
+    const max = new Date();
+    max.setDate(max.getDate() + 7);
+    return max.toISOString().slice(0, 16);
+  };
+  
   const [departureTime, setDepartureTime] = useState(getDefaultDateTime());
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,6 +80,8 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
                   type="datetime-local"
                   value={departureTime}
                   onChange={(e) => setDepartureTime(e.target.value)}
+                  min={getMinDateTime()}
+                  max={getMaxDateTime()}
                   className="pl-10"
                   required
                 />
