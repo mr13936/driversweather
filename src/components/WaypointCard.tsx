@@ -1,7 +1,7 @@
+import { useState } from 'react';
 import { Thermometer, Droplets, Wind, Eye, AlertTriangle, Loader2, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { 
   getWeatherIcon, 
@@ -11,6 +11,39 @@ import {
   getConditionWarnings
 } from '@/lib/weatherUtils';
 import { cn } from '@/lib/utils';
+
+interface MouseTooltipProps {
+  text: string;
+  children: React.ReactNode;
+}
+
+const MouseTooltip = ({ text, children }: MouseTooltipProps) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [visible, setVisible] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setPosition({ x: e.clientX + 12, y: e.clientY + 12 });
+  };
+
+  return (
+    <div
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onMouseMove={handleMouseMove}
+      className="cursor-help"
+    >
+      {children}
+      {visible && (
+        <div
+          className="fixed z-50 px-2 py-1 text-xs bg-popover text-popover-foreground border rounded shadow-md pointer-events-none"
+          style={{ left: position.x, top: position.y }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface WaypointCardProps {
   waypoint: Waypoint;
@@ -110,61 +143,39 @@ export const WaypointCard = ({
                   {getWeatherDescription(weather.weatherSymbol)}
                 </p>
                 
-                <TooltipProvider delayDuration={200}>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
-                          <Thermometer className="h-4 w-4 text-primary" />
-                          <span>{weather.temperature.toFixed(1)}°C</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent sideOffset={2}>
-                        <p>Air temperature</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
-                          <Wind className="h-4 w-4 text-primary" />
-                          <span>{weather.windSpeed.toFixed(1)} m/s</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent sideOffset={2}>
-                        <p>Wind speed (meters per second)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    {weather.precipitationIntensity > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-2 text-muted-foreground cursor-help">
-                            <Droplets className="h-4 w-4 text-primary" />
-                            <span>
-                              {getPrecipitationType(weather.precipitationType, weather.temperature)} {weather.precipitationIntensity.toFixed(1)} mm/h
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={2}>
-                          <p>Precipitation intensity (millimeters per hour)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 text-muted-foreground cursor-help">
-                          <Eye className="h-4 w-4 text-primary" />
-                          <span>{weather.visibility.toFixed(1)} km</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent sideOffset={2}>
-                        <p>Visibility distance</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TooltipProvider>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <MouseTooltip text="Air temperature">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Thermometer className="h-4 w-4 text-primary" />
+                      <span>{weather.temperature.toFixed(1)}°C</span>
+                    </div>
+                  </MouseTooltip>
+                  
+                  <MouseTooltip text="Wind speed (meters per second)">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Wind className="h-4 w-4 text-primary" />
+                      <span>{weather.windSpeed.toFixed(1)} m/s</span>
+                    </div>
+                  </MouseTooltip>
+                  
+                  {weather.precipitationIntensity > 0 && (
+                    <MouseTooltip text="Precipitation intensity (millimeters per hour)">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Droplets className="h-4 w-4 text-primary" />
+                        <span>
+                          {getPrecipitationType(weather.precipitationType, weather.temperature)} {weather.precipitationIntensity.toFixed(1)} mm/h
+                        </span>
+                      </div>
+                    </MouseTooltip>
+                  )}
+                  
+                  <MouseTooltip text="Visibility distance">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <span>{weather.visibility.toFixed(1)} km</span>
+                    </div>
+                  </MouseTooltip>
+                </div>
                 
                 {warnings.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1">
