@@ -79,7 +79,8 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
   const markersRef = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
   const lastRouteRef = useRef<string>(''); // Track route changes
-  const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_WAYPOINTS);
+  const [maxVisible, setMaxVisible] = useState(MAX_VISIBLE_WAYPOINTS);
+  const [actualShown, setActualShown] = useState(0);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-GB', { 
@@ -88,8 +89,8 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     });
   };
 
-  // Calculate visible count based on zoom level
-  const updateVisibleCount = useCallback(() => {
+  // Calculate max visible based on zoom level
+  const updateMaxVisible = useCallback(() => {
     if (!mapRef.current) return;
     
     const zoom = mapRef.current.getZoom();
@@ -99,7 +100,7 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       waypoints.length,
       Math.max(4, Math.floor(zoom * 1.2))
     );
-    setVisibleCount(Math.min(count, MAX_VISIBLE_WAYPOINTS));
+    setMaxVisible(Math.min(count, MAX_VISIBLE_WAYPOINTS));
   }, [waypoints.length]);
 
   // Initialize map
@@ -113,16 +114,16 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     }).addTo(mapRef.current);
 
     // Listen for zoom changes
-    mapRef.current.on('zoomend', updateVisibleCount);
+    mapRef.current.on('zoomend', updateMaxVisible);
 
     return () => {
       if (mapRef.current) {
-        mapRef.current.off('zoomend', updateVisibleCount);
+        mapRef.current.off('zoomend', updateMaxVisible);
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, [updateVisibleCount]);
+  }, [updateMaxVisible]);
 
   // Update route and markers when data changes
   useEffect(() => {
@@ -158,7 +159,10 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
     }
 
     // Get filtered waypoint indices
-    const visibleIndices = filterWaypoints(waypoints, visibleCount);
+    const visibleIndices = filterWaypoints(waypoints, maxVisible);
+    
+    // Track actual number of markers we're adding
+    let markerCount = 0;
 
     // Add waypoint markers only for visible indices
     visibleIndices.forEach((originalIndex) => {
@@ -202,11 +206,15 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
 
       marker.bindPopup(popupContent);
       markersRef.current.push(marker);
+      markerCount++;
     });
 
-    // Update visible count based on current zoom
-    updateVisibleCount();
-  }, [routeGeometry, waypoints, weatherData, visibleCount, updateVisibleCount]);
+    // Update actual shown count
+    setActualShown(markerCount);
+
+    // Update max visible based on current zoom
+    updateMaxVisible();
+  }, [routeGeometry, waypoints, weatherData, maxVisible, updateMaxVisible]);
 
   return (
     <div className="relative w-full h-[400px] rounded-lg overflow-hidden card-shadow animate-slide-up">
@@ -227,9 +235,9 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
             <span className="w-3 h-3 rounded-full bg-card border border-border"></span>
             Waypoint
           </span>
-          {waypoints.length > visibleCount && (
+          {waypoints.length > actualShown && (
             <span className="text-muted-foreground">
-              ({visibleCount}/{waypoints.length} shown)
+              ({actualShown}/{waypoints.length} shown)
             </span>
           )}
         </div>
