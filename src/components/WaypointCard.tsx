@@ -124,7 +124,7 @@ export const WaypointCard = ({
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Droplets className="h-4 w-4 text-primary" />
                       <span>
-                        {getPrecipitationType(weather.precipitationType)} {weather.precipitationIntensity.toFixed(1)} mm/h
+                        {getPrecipitationType(weather.precipitationType, weather.temperature)} {weather.precipitationIntensity.toFixed(1)} mm/h
                       </span>
                     </div>
                   )}
