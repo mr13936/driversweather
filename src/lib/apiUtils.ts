@@ -64,11 +64,12 @@ export const geocodeLocation = async (name: string): Promise<Coordinates> => {
 };
 
 // Get route from OSRM
+// Get route from OSRM (using HTTPS to avoid mixed content issues)
 export const getRoute = async (
   from: Coordinates,
   to: Coordinates
 ): Promise<RouteData> => {
-  const url = `http://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true`;
   
   const response = await fetch(url);
   
