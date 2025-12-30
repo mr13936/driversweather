@@ -73,7 +73,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
               />
             </div>
             
-            <div className="flex items-end pb-1">
+            <div className="hidden lg:flex items-end pb-1">
               <Button
                 type="button"
                 variant="ghost"
