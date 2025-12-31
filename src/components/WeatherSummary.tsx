@@ -260,39 +260,61 @@ const findDaylightEvents = (
   const events: DaylightEvent[] = [];
   const seenEvents = new Set<string>();
   
-  waypoints.forEach((waypoint, index) => {
+  const tripStart = startTime.getTime();
+  const tripEnd = waypoints[waypoints.length - 1].arrivalTime.getTime();
+  
+  // First pass: collect all potential sunrise/sunset events
+  const potentialEvents: { type: 'sunrise' | 'sunset'; time: Date; waypointIndex: number }[] = [];
+  
+  waypoints.forEach((_, index) => {
     const weather = weatherData.get(index);
     if (!weather) return;
     
-    const tripStart = startTime.getTime();
-    const tripEnd = waypoints[waypoints.length - 1].arrivalTime.getTime();
-    
-    // Check sunrise
     if (weather.sunrise) {
       const sunriseTime = weather.sunrise.getTime();
       const key = `sunrise-${weather.sunrise.toISOString().split('T')[0]}`;
       if (sunriseTime >= tripStart && sunriseTime <= tripEnd && !seenEvents.has(key)) {
         seenEvents.add(key);
-        events.push({
-          type: 'sunrise',
-          time: weather.sunrise,
-          minutesFromStart: (sunriseTime - tripStart) / (1000 * 60),
-          location: waypoint.name
-        });
+        potentialEvents.push({ type: 'sunrise', time: weather.sunrise, waypointIndex: index });
       }
     }
     
-    // Check sunset
     if (weather.sunset) {
       const sunsetTime = weather.sunset.getTime();
       const key = `sunset-${weather.sunset.toISOString().split('T')[0]}`;
       if (sunsetTime >= tripStart && sunsetTime <= tripEnd && !seenEvents.has(key)) {
         seenEvents.add(key);
+        potentialEvents.push({ type: 'sunset', time: weather.sunset, waypointIndex: index });
+      }
+    }
+  });
+  
+  // Second pass: for each event, find the waypoint closest in time to get accurate sunrise/sunset
+  potentialEvents.forEach(event => {
+    const eventTime = event.time.getTime();
+    
+    // Find waypoint closest in time to the event
+    let closestIndex = 0;
+    let closestDiff = Math.abs(waypoints[0].arrivalTime.getTime() - eventTime);
+    
+    waypoints.forEach((waypoint, index) => {
+      const diff = Math.abs(waypoint.arrivalTime.getTime() - eventTime);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        closestIndex = index;
+      }
+    });
+    
+    // Use the sunrise/sunset from the closest waypoint (location-accurate)
+    const closestWeather = weatherData.get(closestIndex);
+    if (closestWeather) {
+      const accurateTime = event.type === 'sunrise' ? closestWeather.sunrise : closestWeather.sunset;
+      if (accurateTime) {
         events.push({
-          type: 'sunset',
-          time: weather.sunset,
-          minutesFromStart: (sunsetTime - tripStart) / (1000 * 60),
-          location: waypoint.name
+          type: event.type,
+          time: accurateTime,
+          minutesFromStart: (accurateTime.getTime() - tripStart) / (1000 * 60),
+          location: waypoints[closestIndex].name
         });
       }
     }
@@ -421,14 +443,11 @@ const generateNarrative = (
       if (event.minutesFromStart >= segment.startMinutes && 
           (index === segments.length - 1 || event.minutesFromStart < segments[index + 1]?.startMinutes)) {
         const timeStr = formatTime(event.time);
-        const locationRef = isUnnamedLocation(event.location) 
-          ? `around ${formatDuration(event.minutesFromStart)} into your trip`
-          : `near ${event.location}`;
         
         if (event.type === 'sunrise') {
-          narrative.push({ text: `🌅 Sunrise at ${timeStr} ${locationRef}. Daylight driving conditions ahead.`, severity: 'none' });
+          narrative.push({ text: `🌅 Sunrise at ${timeStr}. Daylight driving conditions ahead.`, severity: 'none' });
         } else {
-          narrative.push({ text: `🌇 Sunset at ${timeStr} ${locationRef}. You'll continue in darkness after this.`, severity: 'none' });
+          narrative.push({ text: `🌇 Sunset at ${timeStr}. You'll continue in darkness after this.`, severity: 'none' });
         }
       }
     });
