@@ -65,9 +65,13 @@ const Index = () => {
 
       setIsLoading(false);
       
-      // Scroll to results after data is loaded
+      // Scroll to results after data is loaded, accounting for sticky header
       setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (resultsRef.current) {
+          const headerHeight = 80; // Approximate header height
+          const elementPosition = resultsRef.current.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo({ top: elementPosition - headerHeight, behavior: 'smooth' });
+        }
       }, 100);
 
       // Fetch weather for each waypoint
