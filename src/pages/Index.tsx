@@ -23,6 +23,7 @@ const Index = () => {
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [weatherData, setWeatherData] = useState<Map<number, WeatherData | null>>(new Map());
+  const [weatherDataOffset, setWeatherDataOffset] = useState<Map<number, WeatherData | null>>(new Map());
   const [loadingStates, setLoadingStates] = useState<Map<number, boolean>>(new Map());
   const [fromName, setFromName] = useState('');
   const [toName, setToName] = useState('');
@@ -35,6 +36,7 @@ const Index = () => {
     setRouteData(null);
     setWaypoints([]);
     setWeatherData(new Map());
+    setWeatherDataOffset(new Map());
     setLoadingStates(new Map());
     setDepartureTime(departure);
 
@@ -74,7 +76,7 @@ const Index = () => {
         }
       }, 100);
 
-      // Fetch weather for each waypoint
+      // Fetch weather for each waypoint (current time and +1 hour offset)
       calculatedWaypoints.forEach(async (waypoint, index) => {
         try {
           const weather = await getWeather(waypoint.lat, waypoint.lon, waypoint.arrivalTime);
@@ -84,6 +86,16 @@ const Index = () => {
           setWeatherData(prev => new Map(prev).set(index, null));
         } finally {
           setLoadingStates(prev => new Map(prev).set(index, false));
+        }
+        
+        // Also fetch weather for +1 hour offset for comparison
+        try {
+          const offsetTime = new Date(waypoint.arrivalTime.getTime() + 60 * 60 * 1000);
+          const weatherOffset = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
+          setWeatherDataOffset(prev => new Map(prev).set(index, weatherOffset));
+        } catch (err) {
+          console.error(`Failed to fetch offset weather for waypoint ${index}:`, err);
+          setWeatherDataOffset(prev => new Map(prev).set(index, null));
         }
       });
 
@@ -135,6 +147,7 @@ const Index = () => {
             <WeatherSummary
               waypoints={waypoints}
               weatherData={weatherData}
+              weatherDataOffset={weatherDataOffset}
             />
             
             <RouteMap

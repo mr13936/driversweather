@@ -6,6 +6,7 @@ import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
 interface WeatherSummaryProps {
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
+  weatherDataOffset?: Map<number, WeatherData | null>;
 }
 
 type SeverityLevel = 'good' | 'caution' | 'warning';
@@ -415,7 +416,37 @@ const generateNarrative = (
   return narrative;
 };
 
-export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) => {
+const getWaitMessage = (
+  currentAssessment: TripAssessment,
+  offsetAssessment: TripAssessment | null
+): string | null => {
+  if (!offsetAssessment) return null;
+  
+  const severityScore = (severity: SeverityLevel): number => {
+    switch (severity) {
+      case 'good': return 0;
+      case 'caution': return 1;
+      case 'warning': return 2;
+    }
+  };
+  
+  const currentScore = severityScore(currentAssessment.severity);
+  const offsetScore = severityScore(offsetAssessment.severity);
+  
+  // Also compare warning/caution counts for more nuance
+  const currentBadCount = currentAssessment.warningCount + currentAssessment.cautionCount;
+  const offsetBadCount = offsetAssessment.warningCount + offsetAssessment.cautionCount;
+  
+  if (offsetScore < currentScore || (offsetScore === currentScore && offsetBadCount < currentBadCount)) {
+    return '⏰ Waiting 1 hour will improve conditions.';
+  } else if (offsetScore > currentScore || (offsetScore === currentScore && offsetBadCount > currentBadCount)) {
+    return '⏰ Waiting 1 hour will worsen conditions.';
+  } else {
+    return '⏰ Waiting 1 hour will not improve conditions.';
+  }
+};
+
+export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset }: WeatherSummaryProps) => {
   const loadedCount = Array.from(weatherData.values()).filter(w => w !== null).length;
   
   if (loadedCount === 0) return null;
@@ -423,6 +454,15 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
   const assessment = assessTrip(waypoints, weatherData);
   const overallMessage = getOverallMessage(assessment);
   const narrative = generateNarrative(waypoints, weatherData);
+  
+  // Calculate offset assessment if offset data is available
+  const offsetLoadedCount = weatherDataOffset 
+    ? Array.from(weatherDataOffset.values()).filter(w => w !== null).length 
+    : 0;
+  const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
+    ? assessTrip(waypoints, weatherDataOffset)
+    : null;
+  const waitMessage = getWaitMessage(assessment, offsetAssessment);
 
   const getIcon = () => {
     switch (assessment.severity) {
@@ -457,6 +497,9 @@ export const WeatherSummary = ({ waypoints, weatherData }: WeatherSummaryProps) 
       </AlertTitle>
       <AlertDescription>
         <p className="mt-1 text-sm font-medium">{overallMessage}</p>
+        {waitMessage && (
+          <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
+        )}
         
         {narrative.length > 0 && (
           <div className="mt-3 space-y-2">
