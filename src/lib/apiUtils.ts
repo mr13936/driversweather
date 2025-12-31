@@ -22,6 +22,7 @@ export interface Waypoint {
   lat: number;
   lon: number;
   name: string;
+  roadName?: string;
   arrivalTime: Date;
   distanceFromStart: number;
 }
@@ -100,13 +101,43 @@ export const getRoute = async (
   };
 };
 
+// Reverse geocode to get municipality/region name
+export const reverseGeocode = async (lat: number, lon: number): Promise<{ municipality: string; road: string }> => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'RouteWeatherPlanner/1.0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Reverse geocoding failed');
+    }
+    
+    const data = await response.json();
+    const address = data.address || {};
+    
+    // Get municipality/city/town
+    const municipality = address.municipality || address.city || address.town || address.county || address.state || '';
+    // Get road name if available
+    const road = address.road || '';
+    
+    return { municipality, road };
+  } catch (error) {
+    console.warn('Reverse geocoding failed:', error);
+    return { municipality: '', road: '' };
+  }
+};
+
 // Calculate waypoints at hourly intervals
-export const calculateWaypoints = (
+export const calculateWaypoints = async (
   route: RouteData,
   departureTime: Date,
   fromName: string,
   toName: string
-): Waypoint[] => {
+): Promise<Waypoint[]> => {
   const waypoints: Waypoint[] = [];
   const totalDurationHours = route.duration / 3600;
   const hourCount = Math.ceil(totalDurationHours);
@@ -142,13 +173,13 @@ export const calculateWaypoints = (
     const pointIndex = Math.floor(progress * (route.geometry.length - 1));
     const point = route.geometry[Math.min(pointIndex, route.geometry.length - 1)];
     
-    // Find nearest step name
+    // Find nearest step name (road name from OSRM)
     let accumulatedDuration = 0;
-    let locationName = 'En route';
+    let roadName = '';
     for (const step of route.steps) {
       accumulatedDuration += step.duration;
       if (accumulatedDuration >= targetTime) {
-        locationName = step.name || 'En route';
+        roadName = step.name || '';
         break;
       }
     }
@@ -156,11 +187,22 @@ export const calculateWaypoints = (
     waypoints.push({
       lat: point[0],
       lon: point[1],
-      name: locationName,
+      name: '', // Will be filled by reverse geocoding
+      roadName: roadName,
       arrivalTime: new Date(departureTime.getTime() + targetTime * 1000),
       distanceFromStart: progress * route.distance
     });
   }
+  
+  // Reverse geocode intermediate waypoints (not first and last)
+  const geocodePromises = waypoints.slice(1, -1).map(async (wp, index) => {
+    const { municipality, road } = await reverseGeocode(wp.lat, wp.lon);
+    // Use road from OSRM if available, otherwise from reverse geocode
+    const finalRoad = wp.roadName || road || 'En route';
+    waypoints[index + 1].name = municipality ? `${finalRoad} - ${municipality}` : finalRoad;
+  });
+  
+  await Promise.all(geocodePromises);
   
   return waypoints;
 };

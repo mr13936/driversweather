@@ -51,8 +51,8 @@ const Index = () => {
       const route = await getRoute(fromCoords, toCoords);
       setRouteData(route);
 
-      // Calculate waypoints
-      const calculatedWaypoints = calculateWaypoints(route, departure, from, to);
+      // Calculate waypoints (with reverse geocoding for location names)
+      const calculatedWaypoints = await calculateWaypoints(route, departure, from, to);
       setWaypoints(calculatedWaypoints);
 
       // Initialize loading states
