@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Navigation, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ interface RouteInputProps {
 export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
   const [from, setFrom] = useState('Stockholm');
   const [to, setTo] = useState('Luleå');
+  const [buttonWidth, setButtonWidth] = useState<number | undefined>(undefined);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   
   // Default to current time rounded to the nearest hour
   const getDefaultDateTime = () => {
@@ -38,6 +40,10 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Capture button width before loading starts
+    if (buttonRef.current) {
+      setButtonWidth(buttonRef.current.offsetWidth);
+    }
     onSubmit(from, to, new Date(departureTime));
   };
 
@@ -86,10 +92,12 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
               />
             </div>
             
-            <div className="flex items-end min-w-[200px]">
+            <div className="flex items-end">
               <Button 
+                ref={buttonRef}
                 type="submit" 
-                className="h-14 w-full font-medium"
+                className="h-14 font-medium"
+                style={{ width: isLoading && buttonWidth ? buttonWidth : undefined }}
                 disabled={isLoading}
               >
                 {isLoading ? (
