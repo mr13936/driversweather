@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Cloud } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { RouteInput } from '@/components/RouteInput';
@@ -27,6 +27,7 @@ const Index = () => {
   const [fromName, setFromName] = useState('');
   const [toName, setToName] = useState('');
   const [departureTime, setDepartureTime] = useState<Date | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = useCallback(async (from: string, to: string, departure: Date) => {
     setIsLoading(true);
@@ -63,6 +64,11 @@ const Index = () => {
       setLoadingStates(initialLoadingStates);
 
       setIsLoading(false);
+      
+      // Scroll to results after data is loaded
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
 
       // Fetch weather for each waypoint
       calculatedWaypoints.forEach(async (waypoint, index) => {
@@ -113,7 +119,7 @@ const Index = () => {
         )}
         
         {routeData && departureTime && (
-          <>
+          <div ref={resultsRef}>
             <RouteSummary
               distance={routeData.distance}
               duration={routeData.duration}
@@ -132,7 +138,7 @@ const Index = () => {
               waypoints={waypoints}
               weatherData={weatherData}
             />
-          </>
+          </div>
         )}
         
         {waypoints.length > 0 && (
