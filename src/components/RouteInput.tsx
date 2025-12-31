@@ -86,7 +86,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
               />
             </div>
             
-            <div className="flex items-end">
+            <div className="flex items-end min-w-[200px]">
               <Button 
                 type="submit" 
                 className="h-14 w-full font-medium"
