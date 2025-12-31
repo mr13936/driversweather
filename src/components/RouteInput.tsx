@@ -47,7 +47,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-xl font-semibold">
           <Navigation className="h-5 w-5 text-primary" />
-          Plan Your Route
+          Select Route and Departure date
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -80,7 +80,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
                   onChange={(e) => setDepartureTime(e.target.value)}
                   min={getMinDateTime()}
                   max={getMaxDateTime()}
-                  className="pl-10"
+                  className="h-14 pl-10"
                   required
                 />
               </div>
