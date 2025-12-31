@@ -89,7 +89,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
             <div className="flex items-end">
               <Button 
                 type="submit" 
-                className="w-full font-medium"
+                className="h-14 w-full font-medium"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -100,7 +100,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
                 ) : (
                   <>
                     <Navigation className="mr-2 h-4 w-4" />
-                    Plan Route & Get Weather
+                    Get Route and Weather
                   </>
                 )}
               </Button>
