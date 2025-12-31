@@ -94,7 +94,11 @@ const assessTrip = (
   return { severity, isLongTrip, hasMixedConditions, warningCount, cautionCount, totalPoints };
 };
 
-const getOverallMessage = (assessment: TripAssessment): string => {
+const getOverallMessage = (
+  assessment: TripAssessment,
+  waypoints: Waypoint[],
+  weatherData: Map<number, WeatherData | null>
+): string => {
   const { severity, isLongTrip, hasMixedConditions, warningCount, totalPoints } = assessment;
 
   if (severity === 'good') {
@@ -104,14 +108,40 @@ const getOverallMessage = (assessment: TripAssessment): string => {
     return 'Conditions look favorable for driving. Have a safe trip!';
   }
 
+  // Determine actual problematic conditions for better messaging
+  let hasPrecipitationIssue = false;
+  let hasVisibilityIssue = false;
+  let hasWindIssue = false;
+  
+  waypoints.forEach((_, index) => {
+    const weather = weatherData.get(index);
+    if (!weather) return;
+    
+    if (weather.precipitationIntensity > 2 || (weather.weatherSymbol >= 10 && weather.weatherSymbol <= 27)) {
+      hasPrecipitationIssue = true;
+    }
+    if (weather.visibility < 5) {
+      hasVisibilityIssue = true;
+    }
+    if (weather.windSpeed > 15) {
+      hasWindIssue = true;
+    }
+  });
+
+  // Build specific message based on actual conditions
+  const issues: string[] = [];
+  if (hasPrecipitationIssue) issues.push('precipitation');
+  if (hasVisibilityIssue) issues.push('reduced visibility');
+  if (hasWindIssue) issues.push('strong winds');
+
   if (severity === 'caution') {
     if (isLongTrip && hasMixedConditions) {
-      return 'Your route passes through varying weather. Expect some precipitation along parts of the journey, but conditions are manageable overall.';
+      return 'Your route passes through varying weather. Conditions are manageable overall.';
     }
-    if (hasMixedConditions) {
-      return 'Some precipitation expected along parts of your route. Conditions are mostly manageable.';
+    if (issues.length > 0) {
+      return `Expect ${issues.join(' and ')} along parts of your route. Drive with care.`;
     }
-    return 'Some precipitation expected. Drive with care.';
+    return 'Some challenging conditions expected. Drive with care.';
   }
 
   // Warning severity
@@ -119,7 +149,10 @@ const getOverallMessage = (assessment: TripAssessment): string => {
     const badPortion = Math.round((warningCount / totalPoints) * 100);
     return `Expect challenging weather for about ${badPortion}% of your route. Consider timing your departure to avoid the worst conditions.`;
   }
-  return 'Significant precipitation expected. Allow extra time and drive carefully.';
+  if (issues.length > 0) {
+    return `Significant ${issues.join(' and ')} expected. Allow extra time and drive carefully.`;
+  }
+  return 'Challenging driving conditions expected. Allow extra time and drive carefully.';
 };
 
 const describeConditions = (weather: WeatherData): string => {
@@ -452,7 +485,7 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset }: We
   if (loadedCount === 0) return null;
 
   const assessment = assessTrip(waypoints, weatherData);
-  const overallMessage = getOverallMessage(assessment);
+  const overallMessage = getOverallMessage(assessment, waypoints, weatherData);
   const narrative = generateNarrative(waypoints, weatherData);
   
   // Calculate offset assessment if offset data is available
