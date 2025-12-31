@@ -68,7 +68,7 @@ const Index = () => {
       // Scroll to results after data is loaded, accounting for sticky header
       setTimeout(() => {
         if (resultsRef.current) {
-          const headerHeight = 80; // Approximate header height
+          const headerHeight = 85; // Approximate header height
           const elementPosition = resultsRef.current.getBoundingClientRect().top + window.scrollY;
           window.scrollTo({ top: elementPosition - headerHeight, behavior: 'smooth' });
         }
