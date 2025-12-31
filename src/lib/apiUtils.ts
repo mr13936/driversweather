@@ -7,6 +7,7 @@ export interface Coordinates {
 export interface RouteStep {
   location: [number, number];
   name: string;
+  ref?: string; // Road reference (e.g., "E4", "E6")
   distance: number;
   duration: number;
 }
@@ -89,6 +90,7 @@ export const getRoute = async (
   const steps: RouteStep[] = route.legs[0].steps.map((step: any) => ({
     location: step.maneuver.location,
     name: step.name || 'Unnamed road',
+    ref: step.ref || undefined, // E-road reference (e.g., "E4", "E6")
     distance: step.distance,
     duration: step.duration
   }));
@@ -176,19 +178,24 @@ export const calculateWaypoints = async (
     // Find nearest step name (road name from OSRM)
     let accumulatedDuration = 0;
     let roadName = '';
+    let roadRef = '';
     for (const step of route.steps) {
       accumulatedDuration += step.duration;
       if (accumulatedDuration >= targetTime) {
         roadName = step.name || '';
+        roadRef = step.ref || '';
         break;
       }
     }
+    
+    // Prioritize E-road reference over street name
+    const displayRoad = roadRef || roadName;
     
     waypoints.push({
       lat: point[0],
       lon: point[1],
       name: '', // Will be filled by reverse geocoding
-      roadName: roadName,
+      roadName: displayRoad,
       arrivalTime: new Date(departureTime.getTime() + targetTime * 1000),
       distanceFromStart: progress * route.distance
     });
