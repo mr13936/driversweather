@@ -53,7 +53,7 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-xl font-semibold">
           <Navigation className="h-5 w-5 text-primary" />
-          Select Route and Departure date
+          Route and Date
         </CardTitle>
       </CardHeader>
       <CardContent>
