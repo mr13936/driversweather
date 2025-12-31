@@ -121,7 +121,7 @@ export const WaypointCard = ({
                   {formatTime(waypoint.arrivalTime)}
                 </p>
                 <p className="text-sm text-muted-foreground truncate">
-                  {waypoint.name} • {Math.round(waypoint.distanceFromStart)} km
+                  {waypoint.name}{waypoint.distanceFromStart > 0 ? ` - ${Math.round(waypoint.distanceFromStart)} km` : ''}
                 </p>
               </div>
               
