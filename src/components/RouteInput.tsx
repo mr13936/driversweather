@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Navigation, Loader2 } from 'lucide-react';
+import { Navigation, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,19 +71,19 @@ export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
               />
             </div>
             
-            <div className="space-y-2">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="datetime-local"
-                  value={departureTime}
-                  onChange={(e) => setDepartureTime(e.target.value)}
-                  min={getMinDateTime()}
-                  max={getMaxDateTime()}
-                  className="h-14 pl-10"
-                  required
-                />
-              </div>
+            <div className="relative rounded-lg border border-input bg-background transition-colors focus-within:border-primary">
+              <label className="absolute left-3 top-2.5 text-xs font-medium text-muted-foreground">
+                Departure
+              </label>
+              <Input
+                type="datetime-local"
+                value={departureTime}
+                onChange={(e) => setDepartureTime(e.target.value)}
+                min={getMinDateTime()}
+                max={getMaxDateTime()}
+                className="h-14 border-0 pt-7 pb-2 text-base font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                required
+              />
             </div>
             
             <div className="flex items-end">
