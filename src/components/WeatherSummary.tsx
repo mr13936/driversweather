@@ -513,12 +513,12 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, load
       <Alert className="animate-fade-in mt-4">
         <Loader2 className="h-5 w-5 animate-spin" />
         <AlertTitle className="font-semibold text-base">
-          Calculating Route
+          Analyzing weather data
         </AlertTitle>
         <AlertDescription>
           <div className="mt-2">
             <p className="text-sm text-muted-foreground">
-              Determining waypoints along your route...
+              Determining weather along waypoints along your route...
             </p>
           </div>
         </AlertDescription>
