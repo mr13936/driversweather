@@ -24,6 +24,8 @@ const Index = () => {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [weatherData, setWeatherData] = useState<Map<number, WeatherData | null>>(new Map());
   const [weatherDataOffset, setWeatherDataOffset] = useState<Map<number, WeatherData | null>>(new Map());
+  const [weatherDataOffset3h, setWeatherDataOffset3h] = useState<Map<number, WeatherData | null>>(new Map());
+  const [isLoading3hOffset, setIsLoading3hOffset] = useState(false);
   const [loadingStates, setLoadingStates] = useState<Map<number, boolean>>(new Map());
   const [fromName, setFromName] = useState('');
   const [toName, setToName] = useState('');
@@ -37,6 +39,8 @@ const Index = () => {
     setWaypoints([]);
     setWeatherData(new Map());
     setWeatherDataOffset(new Map());
+    setWeatherDataOffset3h(new Map());
+    setIsLoading3hOffset(false);
     setLoadingStates(new Map());
     setDepartureTime(departure);
 
@@ -107,6 +111,24 @@ const Index = () => {
     }
   }, []);
 
+  const fetch3hOffsetWeather = useCallback(async (waypointList: Waypoint[]) => {
+    setIsLoading3hOffset(true);
+    setWeatherDataOffset3h(new Map());
+    
+    await Promise.all(waypointList.map(async (waypoint, index) => {
+      try {
+        const offsetTime = new Date(waypoint.arrivalTime.getTime() + 3 * 60 * 60 * 1000);
+        const weather = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
+        setWeatherDataOffset3h(prev => new Map(prev).set(index, weather));
+      } catch (err) {
+        console.error(`Failed to fetch 3h offset weather for waypoint ${index}:`, err);
+        setWeatherDataOffset3h(prev => new Map(prev).set(index, null));
+      }
+    }));
+    
+    setIsLoading3hOffset(false);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -152,6 +174,9 @@ const Index = () => {
               waypoints={waypoints}
               weatherData={weatherData}
               weatherDataOffset={weatherDataOffset}
+              weatherDataOffset3h={weatherDataOffset3h}
+              isLoading3hOffset={isLoading3hOffset}
+              onRequest3hCheck={fetch3hOffsetWeather}
               loadingStates={loadingStates}
               isCalculatingRoute={isLoading && waypoints.length === 0}
             />
