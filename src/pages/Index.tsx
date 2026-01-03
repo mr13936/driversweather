@@ -56,15 +56,17 @@ const Index = () => {
 
       // Calculate waypoints (with reverse geocoding for location names)
       const calculatedWaypoints = await calculateWaypoints(route, departure, from, to);
-      setWaypoints(calculatedWaypoints);
-
-      // Initialize loading states
+      
+      // Initialize loading states before setting waypoints
+      // so both are ready when WeatherSummary renders
       const initialLoadingStates = new Map<number, boolean>();
       calculatedWaypoints.forEach((_, index) => {
         initialLoadingStates.set(index, true);
       });
+      
+      // Batch state updates together
       setLoadingStates(initialLoadingStates);
-
+      setWaypoints(calculatedWaypoints);
       setIsLoading(false);
       
       // Scroll to results after data is loaded, accounting for sticky header
