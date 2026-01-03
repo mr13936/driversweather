@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, CloudSun, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -8,6 +9,9 @@ interface WeatherSummaryProps {
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
   weatherDataOffset?: Map<number, WeatherData | null>;
+  weatherDataOffset3h?: Map<number, WeatherData | null>;
+  isLoading3hOffset?: boolean;
+  onRequest3hCheck?: (waypoints: Waypoint[]) => void;
   loadingStates?: Map<number, boolean>;
   isCalculatingRoute?: boolean;
 }
@@ -501,7 +505,51 @@ const getWaitMessage = (
   }
 };
 
-export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, loadingStates, isCalculatingRoute }: WeatherSummaryProps) => {
+const get3hWaitMessage = (
+  currentAssessment: TripAssessment,
+  offset3hAssessment: TripAssessment | null,
+  isLoading: boolean
+): string | null => {
+  if (isLoading) {
+    return 'Checking if waiting 3 hours will improve conditions...';
+  }
+  
+  if (!offset3hAssessment) return null;
+  
+  const severityScore = (severity: SeverityLevel): number => {
+    switch (severity) {
+      case 'good': return 0;
+      case 'caution': return 1;
+      case 'warning': return 2;
+    }
+  };
+  
+  const currentScore = severityScore(currentAssessment.severity);
+  const offsetScore = severityScore(offset3hAssessment.severity);
+  const currentBadCount = currentAssessment.warningCount + currentAssessment.cautionCount;
+  const offsetBadCount = offset3hAssessment.warningCount + offset3hAssessment.cautionCount;
+  
+  if (offsetScore < currentScore || (offsetScore === currentScore && offsetBadCount < currentBadCount)) {
+    return 'Waiting 3 hours will improve conditions for your trip.';
+  } else if (offsetScore > currentScore || (offsetScore === currentScore && offsetBadCount > currentBadCount)) {
+    return 'Waiting 3 hours will worsen conditions for your trip.';
+  } else {
+    return 'Waiting 3 hours will not improve conditions for your trip.';
+  }
+};
+
+export const WeatherSummary = ({ 
+  waypoints, 
+  weatherData, 
+  weatherDataOffset, 
+  weatherDataOffset3h,
+  isLoading3hOffset,
+  onRequest3hCheck,
+  loadingStates, 
+  isCalculatingRoute 
+}: WeatherSummaryProps) => {
+  const [has3hCheckTriggered, setHas3hCheckTriggered] = useState(false);
+  
   const loadedCount = Array.from(weatherData.values()).filter(w => w !== null).length;
   const totalCount = waypoints.length;
   const isLoading = loadingStates ? Array.from(loadingStates.values()).some(loading => loading) : false;
@@ -561,6 +609,26 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, load
     ? assessTrip(waypoints, weatherDataOffset)
     : null;
   const waitMessage = getWaitMessage(assessment, offsetAssessment);
+  
+  // Calculate 3h offset assessment if data is available
+  const offset3hLoadedCount = weatherDataOffset3h 
+    ? Array.from(weatherDataOffset3h.values()).filter(w => w !== null).length 
+    : 0;
+  const offset3hAssessment = offset3hLoadedCount > 0 && weatherDataOffset3h
+    ? assessTrip(waypoints, weatherDataOffset3h)
+    : null;
+  const wait3hMessage = get3hWaitMessage(assessment, offset3hAssessment, isLoading3hOffset || false);
+  
+  // Trigger 3h check when 1h shows no improvement
+  useEffect(() => {
+    const offsetFullyLoaded = offsetLoadedCount === totalCount && totalCount > 0;
+    const showsNoImprovement = waitMessage === '⏰ Waiting 1 hour will not improve conditions.';
+    
+    if (offsetFullyLoaded && showsNoImprovement && !has3hCheckTriggered && onRequest3hCheck) {
+      setHas3hCheckTriggered(true);
+      onRequest3hCheck(waypoints);
+    }
+  }, [offsetLoadedCount, totalCount, waitMessage, has3hCheckTriggered, onRequest3hCheck, waypoints]);
 
   const getIcon = () => {
     if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
@@ -606,6 +674,12 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, load
         <p className="mt-1 text-sm font-medium">{overallMessage}</p>
         {waitMessage && (
           <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
+        )}
+        {waitMessage === '⏰ Waiting 1 hour will not improve conditions.' && wait3hMessage && (
+          <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+            {isLoading3hOffset && <Loader2 className="h-3 w-3 animate-spin" />}
+            <span>⏰ {wait3hMessage}</span>
+          </p>
         )}
         
         {narrative.length > 0 && (
