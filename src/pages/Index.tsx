@@ -148,6 +148,7 @@ const Index = () => {
               waypoints={waypoints}
               weatherData={weatherData}
               weatherDataOffset={weatherDataOffset}
+              loadingStates={loadingStates}
             />
             
             <RouteMap

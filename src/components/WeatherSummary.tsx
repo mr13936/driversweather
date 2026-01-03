@@ -1,5 +1,6 @@
-import { AlertTriangle, CheckCircle, CloudSun, Sunrise, Sunset } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CloudSun, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
 
@@ -7,6 +8,7 @@ interface WeatherSummaryProps {
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
   weatherDataOffset?: Map<number, WeatherData | null>;
+  loadingStates?: Map<number, boolean>;
 }
 
 type SeverityLevel = 'good' | 'caution' | 'warning';
@@ -498,8 +500,32 @@ const getWaitMessage = (
   }
 };
 
-export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset }: WeatherSummaryProps) => {
+export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, loadingStates }: WeatherSummaryProps) => {
   const loadedCount = Array.from(weatherData.values()).filter(w => w !== null).length;
+  const totalCount = waypoints.length;
+  const isLoading = loadingStates ? Array.from(loadingStates.values()).some(loading => loading) : false;
+  const progressPercent = totalCount > 0 ? (loadedCount / totalCount) * 100 : 0;
+  
+  // Show loading state even before any data is loaded
+  if (loadedCount === 0 && isLoading) {
+    return (
+      <Alert className="animate-fade-in">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <AlertTitle className="font-semibold text-base">
+          Loading Weather Data
+        </AlertTitle>
+        <AlertDescription>
+          <div className="mt-2 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Fetching weather data for your route...
+            </p>
+            <Progress value={0} className="h-2" />
+            <p className="text-xs text-muted-foreground">0 of {totalCount} locations</p>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
   
   if (loadedCount === 0) return null;
 
@@ -517,6 +543,7 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset }: We
   const waitMessage = getWaitMessage(assessment, offsetAssessment);
 
   const getIcon = () => {
+    if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
     switch (assessment.severity) {
       case 'warning':
         return <AlertTriangle className="h-5 w-5" />;
@@ -548,6 +575,14 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset }: We
         {getTitle()}
       </AlertTitle>
       <AlertDescription>
+        {isLoading && (
+          <div className="mb-3 space-y-1">
+            <Progress value={progressPercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              Loading weather data... ({loadedCount} of {totalCount} locations)
+            </p>
+          </div>
+        )}
         <p className="mt-1 text-sm font-medium">{overallMessage}</p>
         {waitMessage && (
           <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
