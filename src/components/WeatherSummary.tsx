@@ -560,7 +560,7 @@ export const WeatherSummary = ({
     ? Array.from(weatherDataOffset.values()).filter(w => w !== null).length 
     : 0;
   
-  // Trigger 3h check when 1h shows no improvement (hook must be before returns)
+  // Trigger 3h check when 1h shows no improvement or worsens conditions (hook must be before returns)
   useEffect(() => {
     if (loadedCount === 0 || totalCount === 0) return;
     
@@ -572,8 +572,9 @@ export const WeatherSummary = ({
     
     const offsetFullyLoaded = offsetLoadedCount === totalCount;
     const showsNoImprovement = waitMessage === '⏰ Waiting 1 hour will not improve conditions.';
+    const showsWorsen = waitMessage === '⏰ Waiting 1 hour will worsen conditions.';
     
-    if (offsetFullyLoaded && showsNoImprovement && !has3hCheckTriggered && onRequest3hCheck) {
+    if (offsetFullyLoaded && (showsNoImprovement || showsWorsen) && !has3hCheckTriggered && onRequest3hCheck) {
       setHas3hCheckTriggered(true);
       onRequest3hCheck(waypoints);
     }
@@ -685,7 +686,7 @@ export const WeatherSummary = ({
         {waitMessage && (
           <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
         )}
-        {waitMessage === '⏰ Waiting 1 hour will not improve conditions.' && wait3hMessage && (
+        {(waitMessage === '⏰ Waiting 1 hour will not improve conditions.' || waitMessage === '⏰ Waiting 1 hour will worsen conditions.') && wait3hMessage && (
           <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
             {isLoading3hOffset && <Loader2 className="h-3 w-3 animate-spin" />}
             <span>⏰ {wait3hMessage}</span>
