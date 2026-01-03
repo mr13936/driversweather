@@ -555,6 +555,30 @@ export const WeatherSummary = ({
   const isLoading = loadingStates ? Array.from(loadingStates.values()).some(loading => loading) : false;
   const progressPercent = totalCount > 0 ? (loadedCount / totalCount) * 100 : 0;
   
+  // Calculate offset counts for useEffect (must be before any returns)
+  const offsetLoadedCount = weatherDataOffset 
+    ? Array.from(weatherDataOffset.values()).filter(w => w !== null).length 
+    : 0;
+  
+  // Trigger 3h check when 1h shows no improvement (hook must be before returns)
+  useEffect(() => {
+    if (loadedCount === 0 || totalCount === 0) return;
+    
+    const assessment = assessTrip(waypoints, weatherData);
+    const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
+      ? assessTrip(waypoints, weatherDataOffset)
+      : null;
+    const waitMessage = getWaitMessage(assessment, offsetAssessment);
+    
+    const offsetFullyLoaded = offsetLoadedCount === totalCount;
+    const showsNoImprovement = waitMessage === '⏰ Waiting 1 hour will not improve conditions.';
+    
+    if (offsetFullyLoaded && showsNoImprovement && !has3hCheckTriggered && onRequest3hCheck) {
+      setHas3hCheckTriggered(true);
+      onRequest3hCheck(waypoints);
+    }
+  }, [offsetLoadedCount, totalCount, loadedCount, has3hCheckTriggered, onRequest3hCheck, waypoints, weatherData, weatherDataOffset]);
+  
   // Show loading state while calculating route waypoints
   if (isCalculatingRoute) {
     return (
@@ -601,10 +625,7 @@ export const WeatherSummary = ({
   const overallMessage = getOverallMessage(assessment, waypoints, weatherData);
   const narrative = generateNarrative(waypoints, weatherData);
   
-  // Calculate offset assessment if offset data is available
-  const offsetLoadedCount = weatherDataOffset 
-    ? Array.from(weatherDataOffset.values()).filter(w => w !== null).length 
-    : 0;
+  // Calculate offset assessment if offset data is available (use pre-calculated offsetLoadedCount)
   const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
     ? assessTrip(waypoints, weatherDataOffset)
     : null;
@@ -618,17 +639,6 @@ export const WeatherSummary = ({
     ? assessTrip(waypoints, weatherDataOffset3h)
     : null;
   const wait3hMessage = get3hWaitMessage(assessment, offset3hAssessment, isLoading3hOffset || false);
-  
-  // Trigger 3h check when 1h shows no improvement
-  useEffect(() => {
-    const offsetFullyLoaded = offsetLoadedCount === totalCount && totalCount > 0;
-    const showsNoImprovement = waitMessage === '⏰ Waiting 1 hour will not improve conditions.';
-    
-    if (offsetFullyLoaded && showsNoImprovement && !has3hCheckTriggered && onRequest3hCheck) {
-      setHas3hCheckTriggered(true);
-      onRequest3hCheck(waypoints);
-    }
-  }, [offsetLoadedCount, totalCount, waitMessage, has3hCheckTriggered, onRequest3hCheck, waypoints]);
 
   const getIcon = () => {
     if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
