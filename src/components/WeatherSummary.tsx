@@ -9,6 +9,7 @@ interface WeatherSummaryProps {
   weatherData: Map<number, WeatherData | null>;
   weatherDataOffset?: Map<number, WeatherData | null>;
   loadingStates?: Map<number, boolean>;
+  isCalculatingRoute?: boolean;
 }
 
 type SeverityLevel = 'good' | 'caution' | 'warning';
@@ -500,16 +501,35 @@ const getWaitMessage = (
   }
 };
 
-export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, loadingStates }: WeatherSummaryProps) => {
+export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, loadingStates, isCalculatingRoute }: WeatherSummaryProps) => {
   const loadedCount = Array.from(weatherData.values()).filter(w => w !== null).length;
   const totalCount = waypoints.length;
   const isLoading = loadingStates ? Array.from(loadingStates.values()).some(loading => loading) : false;
   const progressPercent = totalCount > 0 ? (loadedCount / totalCount) * 100 : 0;
   
+  // Show loading state while calculating route waypoints
+  if (isCalculatingRoute) {
+    return (
+      <Alert className="animate-fade-in mt-4">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <AlertTitle className="font-semibold text-base">
+          Calculating Route
+        </AlertTitle>
+        <AlertDescription>
+          <div className="mt-2">
+            <p className="text-sm text-muted-foreground">
+              Determining waypoints along your route...
+            </p>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
   // Show loading state if we have waypoints but no weather data yet
   if (totalCount > 0 && loadedCount === 0) {
     return (
-      <Alert className="animate-fade-in">
+      <Alert className="animate-fade-in mt-4">
         <Loader2 className="h-5 w-5 animate-spin" />
         <AlertTitle className="font-semibold text-base">
           Loading Weather Data
