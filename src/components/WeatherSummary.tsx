@@ -518,7 +518,7 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, load
         <AlertDescription>
           <div className="mt-2">
             <p className="text-sm text-muted-foreground">
-              Determining weather along waypoints along your route...
+              Determining weather along waypoints on your route...
             </p>
           </div>
         </AlertDescription>
