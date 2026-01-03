@@ -136,30 +136,35 @@ const Index = () => {
           />
         )}
         
-        {routeData && departureTime && (
+        {(routeData && departureTime) || isLoading ? (
           <div ref={resultsRef}>
-            <RouteSummary
-              distance={routeData.distance}
-              duration={routeData.duration}
-              departureTime={departureTime}
-              fromName={fromName}
-              toName={toName}
-            />
+            {routeData && departureTime && (
+              <RouteSummary
+                distance={routeData.distance}
+                duration={routeData.duration}
+                departureTime={departureTime}
+                fromName={fromName}
+                toName={toName}
+              />
+            )}
             
             <WeatherSummary
               waypoints={waypoints}
               weatherData={weatherData}
               weatherDataOffset={weatherDataOffset}
               loadingStates={loadingStates}
+              isCalculatingRoute={isLoading && waypoints.length === 0}
             />
             
-            <RouteMap
-              routeGeometry={routeData.geometry}
-              waypoints={waypoints}
-              weatherData={weatherData}
-            />
+            {routeData && (
+              <RouteMap
+                routeGeometry={routeData.geometry}
+                waypoints={waypoints}
+                weatherData={weatherData}
+              />
+            )}
           </div>
-        )}
+        ) : null}
         
         {waypoints.length > 0 && (
           <WeatherTimeline
