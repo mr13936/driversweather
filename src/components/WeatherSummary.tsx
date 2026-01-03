@@ -506,8 +506,8 @@ export const WeatherSummary = ({ waypoints, weatherData, weatherDataOffset, load
   const isLoading = loadingStates ? Array.from(loadingStates.values()).some(loading => loading) : false;
   const progressPercent = totalCount > 0 ? (loadedCount / totalCount) * 100 : 0;
   
-  // Show loading state even before any data is loaded
-  if (loadedCount === 0 && isLoading) {
+  // Show loading state if we have waypoints but no weather data yet
+  if (totalCount > 0 && loadedCount === 0) {
     return (
       <Alert className="animate-fade-in">
         <Loader2 className="h-5 w-5 animate-spin" />
