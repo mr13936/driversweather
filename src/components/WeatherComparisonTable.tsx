@@ -10,7 +10,18 @@ import {
 } from '@/components/ui/table';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
-import { Badge } from '@/components/ui/badge';
+import { 
+  calculateTripAverageScore, 
+  getDrivingScoreLabel, 
+  getDrivingScoreColor,
+  getMinTripScore
+} from '@/lib/drivingScore';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface WeatherComparisonTableProps {
   waypoints: Waypoint[];
@@ -20,47 +31,10 @@ interface WeatherComparisonTableProps {
   isLoading3hOffset: boolean;
 }
 
-type SeverityLevel = 'good' | 'caution' | 'warning';
-
-const getConditionSeverity = (weather: WeatherData): SeverityLevel => {
-  if (
-    weather.precipitationIntensity > 4 ||
-    weather.visibility < 3 ||
-    weather.windSpeed > 20 ||
-    (weather.weatherSymbol >= 20 && weather.weatherSymbol <= 27)
-  ) {
-    return 'warning';
-  }
-  
-  if (
-    weather.precipitationIntensity > 2 ||
-    weather.visibility < 5 ||
-    weather.windSpeed > 15 ||
-    (weather.weatherSymbol >= 10 && weather.weatherSymbol <= 19)
-  ) {
-    return 'caution';
-  }
-  
-  return 'good';
-};
-
-const getSeverityBadge = (severity: SeverityLevel) => {
-  switch (severity) {
-    case 'good':
-      return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Good</Badge>;
-    case 'caution':
-      return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">Caution</Badge>;
-    case 'warning':
-      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">Warning</Badge>;
-  }
-};
-
 const assessTrip = (
   waypoints: Waypoint[],
   weatherData: Map<number, WeatherData | null>
-): { severity: SeverityLevel; avgTemp: number; maxPrecip: number; maxWind: number } => {
-  let warningCount = 0;
-  let cautionCount = 0;
+): { avgTemp: number; maxPrecip: number; maxWind: number } => {
   let totalPoints = 0;
   let tempSum = 0;
   let maxPrecip = 0;
@@ -73,25 +47,37 @@ const assessTrip = (
     tempSum += weather.temperature;
     maxPrecip = Math.max(maxPrecip, weather.precipitationIntensity);
     maxWind = Math.max(maxWind, weather.windSpeed);
-
-    const severity = getConditionSeverity(weather);
-    if (severity === 'warning') warningCount++;
-    else if (severity === 'caution') cautionCount++;
   });
 
-  let severity: SeverityLevel = 'good';
-  if (warningCount > 0) {
-    severity = warningCount >= totalPoints * 0.3 ? 'warning' : 'caution';
-  } else if (cautionCount > 0) {
-    severity = cautionCount >= totalPoints * 0.4 ? 'caution' : 'good';
-  }
-
   return { 
-    severity, 
     avgTemp: totalPoints > 0 ? tempSum / totalPoints : 0,
     maxPrecip,
     maxWind 
   };
+};
+
+const ScoreBadge = ({ score }: { score: number | null }) => {
+  if (score === null) return <span className="text-muted-foreground">—</span>;
+  
+  const colors = getDrivingScoreColor(score);
+  const label = getDrivingScoreLabel(score);
+  
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${colors.bg} ${colors.border} border`}>
+            <span className={`text-lg font-bold ${colors.text}`}>{score}</span>
+            <span className={`text-xs font-medium ${colors.text}`}>{label}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">Driving condition score (0-100)</p>
+          <p className="text-xs text-muted-foreground">Higher is better</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 export const WeatherComparisonTable = ({
@@ -107,6 +93,16 @@ export const WeatherComparisonTable = ({
 
   const offset1hLoadedCount = Array.from(weatherDataOffset.values()).filter(w => w !== null).length;
   const offset3hLoadedCount = Array.from(weatherDataOffset3h.values()).filter(w => w !== null).length;
+
+  // Calculate scores
+  const nowScore = calculateTripAverageScore(weatherData);
+  const offset1hScore = offset1hLoadedCount > 0 ? calculateTripAverageScore(weatherDataOffset) : null;
+  const offset3hScore = offset3hLoadedCount > 0 ? calculateTripAverageScore(weatherDataOffset3h) : null;
+
+  // Calculate min scores (worst conditions)
+  const nowMinScore = getMinTripScore(weatherData);
+  const offset1hMinScore = offset1hLoadedCount > 0 ? getMinTripScore(weatherDataOffset) : null;
+  const offset3hMinScore = offset3hLoadedCount > 0 ? getMinTripScore(weatherDataOffset3h) : null;
 
   const nowAssessment = assessTrip(waypoints, weatherData);
   const offset1hAssessment = offset1hLoadedCount > 0 ? assessTrip(waypoints, weatherDataOffset) : null;
@@ -127,26 +123,44 @@ export const WeatherComparisonTable = ({
   const offset1hSymbol = offset1hLoadedCount > 0 ? getCommonWeatherSymbol(weatherDataOffset) : null;
   const offset3hSymbol = offset3hLoadedCount > 0 ? getCommonWeatherSymbol(weatherDataOffset3h) : null;
 
+  // Find best departure time
+  const scores = [
+    { label: 'Now', score: nowScore },
+    { label: '+1h', score: offset1hScore },
+    { label: '+3h', score: offset3hScore }
+  ].filter(s => s.score !== null);
+  
+  const bestDeparture = scores.length > 0 
+    ? scores.reduce((best, current) => (current.score! > best.score! ? current : best))
+    : null;
+
   return (
     <Card className="animate-fade-in">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Wait Time Comparison</CardTitle>
+        <CardTitle className="text-lg flex items-center justify-between">
+          <span>Departure Time Comparison</span>
+          {bestDeparture && bestDeparture.score !== nowScore && (
+            <span className="text-sm font-normal text-muted-foreground">
+              Best: <span className="text-primary font-medium">{bestDeparture.label}</span>
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[120px]">Departure</TableHead>
+              <TableHead className="w-[100px]">Departure</TableHead>
               <TableHead className="text-center">Conditions</TableHead>
               <TableHead className="text-center">Avg Temp</TableHead>
               <TableHead className="text-center">Max Precip</TableHead>
               <TableHead className="text-center">Max Wind</TableHead>
-              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-center">Score</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {/* Now row */}
-            <TableRow>
+            <TableRow className={nowScore === bestDeparture?.score ? 'bg-primary/5' : ''}>
               <TableCell className="font-medium">Now</TableCell>
               <TableCell className="text-center">
                 <span className="text-lg">{getWeatherIcon(nowSymbol)}</span>
@@ -155,11 +169,13 @@ export const WeatherComparisonTable = ({
               <TableCell className="text-center">{nowAssessment.avgTemp.toFixed(1)}°C</TableCell>
               <TableCell className="text-center">{nowAssessment.maxPrecip.toFixed(1)} mm/h</TableCell>
               <TableCell className="text-center">{nowAssessment.maxWind.toFixed(1)} m/s</TableCell>
-              <TableCell className="text-center">{getSeverityBadge(nowAssessment.severity)}</TableCell>
+              <TableCell className="text-center">
+                <ScoreBadge score={nowScore} />
+              </TableCell>
             </TableRow>
 
             {/* +1h row */}
-            <TableRow>
+            <TableRow className={offset1hScore === bestDeparture?.score && offset1hScore !== nowScore ? 'bg-primary/5' : ''}>
               <TableCell className="font-medium">+1 hour</TableCell>
               {offset1hAssessment ? (
                 <>
@@ -170,7 +186,9 @@ export const WeatherComparisonTable = ({
                   <TableCell className="text-center">{offset1hAssessment.avgTemp.toFixed(1)}°C</TableCell>
                   <TableCell className="text-center">{offset1hAssessment.maxPrecip.toFixed(1)} mm/h</TableCell>
                   <TableCell className="text-center">{offset1hAssessment.maxWind.toFixed(1)} m/s</TableCell>
-                  <TableCell className="text-center">{getSeverityBadge(offset1hAssessment.severity)}</TableCell>
+                  <TableCell className="text-center">
+                    <ScoreBadge score={offset1hScore} />
+                  </TableCell>
                 </>
               ) : (
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
@@ -181,7 +199,7 @@ export const WeatherComparisonTable = ({
             </TableRow>
 
             {/* +3h row */}
-            <TableRow>
+            <TableRow className={offset3hScore === bestDeparture?.score && offset3hScore !== nowScore ? 'bg-primary/5' : ''}>
               <TableCell className="font-medium">+3 hours</TableCell>
               {isLoading3hOffset ? (
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
@@ -197,7 +215,9 @@ export const WeatherComparisonTable = ({
                   <TableCell className="text-center">{offset3hAssessment.avgTemp.toFixed(1)}°C</TableCell>
                   <TableCell className="text-center">{offset3hAssessment.maxPrecip.toFixed(1)} mm/h</TableCell>
                   <TableCell className="text-center">{offset3hAssessment.maxWind.toFixed(1)} m/s</TableCell>
-                  <TableCell className="text-center">{getSeverityBadge(offset3hAssessment.severity)}</TableCell>
+                  <TableCell className="text-center">
+                    <ScoreBadge score={offset3hScore} />
+                  </TableCell>
                 </>
               ) : (
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
@@ -207,6 +227,25 @@ export const WeatherComparisonTable = ({
             </TableRow>
           </TableBody>
         </Table>
+
+        {/* Score legend */}
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground justify-center">
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-emerald-500/30"></span> 90+ Excellent
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-green-500/30"></span> 70-89 Good
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-yellow-500/30"></span> 50-69 Fair
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-orange-500/30"></span> 30-49 Poor
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-red-500/30"></span> 0-29 Hazardous
+          </span>
+        </div>
       </CardContent>
     </Card>
   );

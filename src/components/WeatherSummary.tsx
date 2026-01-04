@@ -4,6 +4,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
+import { 
+  calculateTripAverageScore, 
+  getDrivingScoreLabel, 
+  getDrivingScoreColor 
+} from '@/lib/drivingScore';
 
 interface WeatherSummaryProps {
   waypoints: Waypoint[];
@@ -477,38 +482,54 @@ const generateNarrative = (
 
 const getWaitMessage = (
   currentAssessment: TripAssessment,
-  offsetAssessment: TripAssessment | null
+  offsetAssessment: TripAssessment | null,
+  currentWeatherData: Map<number, WeatherData | null>,
+  offsetWeatherData: Map<number, WeatherData | null> | undefined
 ): string | null => {
   if (!offsetAssessment) return null;
   
-  const severityScore = (severity: SeverityLevel): number => {
-    switch (severity) {
-      case 'good': return 0;
-      case 'caution': return 1;
-      case 'warning': return 2;
+  // Use scores for comparison
+  const currentScore = calculateTripAverageScore(currentWeatherData);
+  const offsetScore = offsetWeatherData ? calculateTripAverageScore(offsetWeatherData) : null;
+  
+  if (currentScore === null || offsetScore === null) {
+    // Fall back to severity comparison
+    const severityScore = (severity: SeverityLevel): number => {
+      switch (severity) {
+        case 'good': return 0;
+        case 'caution': return 1;
+        case 'warning': return 2;
+      }
+    };
+    
+    const currentSev = severityScore(currentAssessment.severity);
+    const offsetSev = severityScore(offsetAssessment.severity);
+    
+    if (offsetSev < currentSev) {
+      return '⏰ Waiting 1 hour will improve conditions.';
+    } else if (offsetSev > currentSev) {
+      return '⏰ Waiting 1 hour will worsen conditions.';
     }
-  };
-  
-  const currentScore = severityScore(currentAssessment.severity);
-  const offsetScore = severityScore(offsetAssessment.severity);
-  
-  // Also compare warning/caution counts for more nuance
-  const currentBadCount = currentAssessment.warningCount + currentAssessment.cautionCount;
-  const offsetBadCount = offsetAssessment.warningCount + offsetAssessment.cautionCount;
-  
-  if (offsetScore < currentScore || (offsetScore === currentScore && offsetBadCount < currentBadCount)) {
-    return '⏰ Waiting 1 hour will improve conditions.';
-  } else if (offsetScore > currentScore || (offsetScore === currentScore && offsetBadCount > currentBadCount)) {
-    return '⏰ Waiting 1 hour will worsen conditions.';
-  } else {
     return '⏰ Waiting 1 hour will not improve conditions.';
   }
+  
+  const scoreDiff = offsetScore - currentScore;
+  
+  if (scoreDiff >= 5) {
+    const label = getDrivingScoreLabel(offsetScore);
+    return `⏰ Waiting 1 hour will improve conditions (score: ${currentScore} → ${offsetScore} ${label}).`;
+  } else if (scoreDiff <= -5) {
+    return `⏰ Waiting 1 hour will worsen conditions (score: ${currentScore} → ${offsetScore}).`;
+  }
+  return '⏰ Waiting 1 hour will not improve conditions.';
 };
 
 const get3hWaitMessage = (
   currentAssessment: TripAssessment,
   offset3hAssessment: TripAssessment | null,
-  isLoading: boolean
+  isLoading: boolean,
+  currentWeatherData: Map<number, WeatherData | null>,
+  offset3hWeatherData: Map<number, WeatherData | null> | undefined
 ): string | null => {
   if (isLoading) {
     return 'Checking if waiting 3 hours will improve conditions...';
@@ -516,26 +537,40 @@ const get3hWaitMessage = (
   
   if (!offset3hAssessment) return null;
   
-  const severityScore = (severity: SeverityLevel): number => {
-    switch (severity) {
-      case 'good': return 0;
-      case 'caution': return 1;
-      case 'warning': return 2;
+  // Use scores for comparison
+  const currentScore = calculateTripAverageScore(currentWeatherData);
+  const offsetScore = offset3hWeatherData ? calculateTripAverageScore(offset3hWeatherData) : null;
+  
+  if (currentScore === null || offsetScore === null) {
+    // Fall back to severity comparison
+    const severityScore = (severity: SeverityLevel): number => {
+      switch (severity) {
+        case 'good': return 0;
+        case 'caution': return 1;
+        case 'warning': return 2;
+      }
+    };
+    
+    const currentSev = severityScore(currentAssessment.severity);
+    const offsetSev = severityScore(offset3hAssessment.severity);
+    
+    if (offsetSev < currentSev) {
+      return 'Waiting 3 hours will improve conditions for your trip.';
+    } else if (offsetSev > currentSev) {
+      return 'Waiting 3 hours will worsen conditions for your trip.';
     }
-  };
-  
-  const currentScore = severityScore(currentAssessment.severity);
-  const offsetScore = severityScore(offset3hAssessment.severity);
-  const currentBadCount = currentAssessment.warningCount + currentAssessment.cautionCount;
-  const offsetBadCount = offset3hAssessment.warningCount + offset3hAssessment.cautionCount;
-  
-  if (offsetScore < currentScore || (offsetScore === currentScore && offsetBadCount < currentBadCount)) {
-    return 'Waiting 3 hours will improve conditions for your trip.';
-  } else if (offsetScore > currentScore || (offsetScore === currentScore && offsetBadCount > currentBadCount)) {
-    return 'Waiting 3 hours will worsen conditions for your trip.';
-  } else {
     return 'Waiting 3 hours will not improve conditions for your trip.';
   }
+  
+  const scoreDiff = offsetScore - currentScore;
+  
+  if (scoreDiff >= 5) {
+    const label = getDrivingScoreLabel(offsetScore);
+    return `Waiting 3 hours will improve conditions (score: ${currentScore} → ${offsetScore} ${label}).`;
+  } else if (scoreDiff <= -5) {
+    return `Waiting 3 hours will worsen conditions (score: ${currentScore} → ${offsetScore}).`;
+  }
+  return 'Waiting 3 hours will not improve conditions for your trip.';
 };
 
 export const WeatherSummary = ({ 
@@ -568,7 +603,7 @@ export const WeatherSummary = ({
     const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
       ? assessTrip(waypoints, weatherDataOffset)
       : null;
-    const waitMessage = getWaitMessage(assessment, offsetAssessment);
+    const waitMessage = getWaitMessage(assessment, offsetAssessment, weatherData, weatherDataOffset);
     
     const offsetFullyLoaded = offsetLoadedCount === totalCount;
     const showsNoImprovement = waitMessage === '⏰ Waiting 1 hour will not improve conditions.';
@@ -630,7 +665,7 @@ export const WeatherSummary = ({
   const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
     ? assessTrip(waypoints, weatherDataOffset)
     : null;
-  const waitMessage = getWaitMessage(assessment, offsetAssessment);
+  const waitMessage = getWaitMessage(assessment, offsetAssessment, weatherData, weatherDataOffset);
   
   // Calculate 3h offset assessment if data is available
   const offset3hLoadedCount = weatherDataOffset3h 
@@ -639,7 +674,7 @@ export const WeatherSummary = ({
   const offset3hAssessment = offset3hLoadedCount > 0 && weatherDataOffset3h
     ? assessTrip(waypoints, weatherDataOffset3h)
     : null;
-  const wait3hMessage = get3hWaitMessage(assessment, offset3hAssessment, isLoading3hOffset || false);
+  const wait3hMessage = get3hWaitMessage(assessment, offset3hAssessment, isLoading3hOffset || false, weatherData, weatherDataOffset3h);
 
   const getIcon = () => {
     if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;

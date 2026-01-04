@@ -11,10 +11,17 @@ import {
   isDangerousConditions,
   getConditionWarnings
 } from '@/lib/weatherUtils';
+import { 
+  calculateDrivingScore, 
+  getDrivingScoreColor, 
+  getDrivingScoreLabel,
+  getScoreBreakdown,
+  formatBreakdownForDisplay
+} from '@/lib/drivingScore';
 import { cn } from '@/lib/utils';
 
 interface MouseTooltipProps {
-  text: string;
+  text: string | string[];
   children: React.ReactNode;
 }
 
@@ -25,6 +32,8 @@ const MouseTooltip = ({ text, children }: MouseTooltipProps) => {
   const handleMouseMove = (e: React.MouseEvent) => {
     setPosition({ x: e.clientX + 12, y: e.clientY + 12 });
   };
+
+  const lines = Array.isArray(text) ? text : [text];
 
   return (
     <div
@@ -38,7 +47,9 @@ const MouseTooltip = ({ text, children }: MouseTooltipProps) => {
           className="fixed z-[9999] px-2 py-1 text-xs bg-popover text-popover-foreground border rounded shadow-md pointer-events-none"
           style={{ left: position.x, top: position.y }}
         >
-          {text}
+          {lines.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
         </div>,
         document.body
       )}
@@ -81,6 +92,12 @@ export const WaypointCard = ({
     weather.visibility,
     weather.windSpeed
   ) : [];
+
+  const score = weather ? calculateDrivingScore(weather) : null;
+  const scoreColors = score !== null ? getDrivingScoreColor(score) : null;
+  const scoreLabel = score !== null ? getDrivingScoreLabel(score) : null;
+  const breakdown = weather ? getScoreBreakdown(weather) : null;
+  const breakdownLines = breakdown ? formatBreakdownForDisplay(breakdown) : [];
 
   return (
     <Card 
@@ -125,12 +142,29 @@ export const WaypointCard = ({
                 </p>
               </div>
               
-              {hasDanger && (
-                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
-                  <AlertTriangle className="mr-1 h-3 w-3" />
-                  Caution
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Driving Score Badge */}
+                {score !== null && scoreColors && (
+                  <MouseTooltip text={[`Score: ${score}/100 (${scoreLabel})`, ...breakdownLines]}>
+                    <div className={cn(
+                      "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                      scoreColors.bg,
+                      scoreColors.text,
+                      scoreColors.border,
+                      "border"
+                    )}>
+                      <span className="font-bold">{score}</span>
+                    </div>
+                  </MouseTooltip>
+                )}
+                
+                {hasDanger && (
+                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    Caution
+                  </Badge>
+                )}
+              </div>
             </div>
             
             {isLoading ? (
