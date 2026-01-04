@@ -6,6 +6,7 @@ import { RouteSummary } from '@/components/RouteSummary';
 import { RouteMap } from '@/components/RouteMap';
 import { WeatherTimeline } from '@/components/WeatherTimeline';
 import { WeatherSummary } from '@/components/WeatherSummary';
+import { WeatherComparisonTable } from '@/components/WeatherComparisonTable';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { 
   geocodeLocation, 
@@ -196,6 +197,16 @@ const Index = () => {
             waypoints={waypoints}
             weatherData={weatherData}
             loadingStates={loadingStates}
+          />
+        )}
+        
+        {waypoints.length > 0 && (
+          <WeatherComparisonTable
+            waypoints={waypoints}
+            weatherData={weatherData}
+            weatherDataOffset={weatherDataOffset}
+            weatherDataOffset3h={weatherDataOffset3h}
+            isLoading3hOffset={isLoading3hOffset}
           />
         )}
         
