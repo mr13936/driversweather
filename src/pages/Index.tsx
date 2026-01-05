@@ -141,7 +141,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">WeatherWay</h1>
-              <p className="text-sm text-muted-foreground">Plan your road trip with weather forecasts</p>
+              <p className="text-sm text-muted-foreground">Plan your road trip with dynamic weather forecasts for locations along your route</p>
             </div>
           </div>
         </div>
