@@ -91,6 +91,28 @@ export const WeatherComparisonTable = ({
   
   if (loadedCount === 0 || waypoints.length === 0) return null;
 
+  // Calculate current trip score
+  const currentTripScore = calculateTripAverageScore(weatherData);
+  
+  // If conditions are excellent (score > 90), show simplified message
+  if (currentTripScore !== null && currentTripScore > 90) {
+    return (
+      <Card className="animate-fade-in">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Departure Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Conditions are excellent — no need to delay your departure.
+            </p>
+            <ScoreBadge score={currentTripScore} />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const offset1hLoadedCount = Array.from(weatherDataOffset.values()).filter(w => w !== null).length;
   const offset3hLoadedCount = Array.from(weatherDataOffset3h.values()).filter(w => w !== null).length;
 

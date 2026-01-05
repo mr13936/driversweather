@@ -18,6 +18,7 @@ import {
   type WeatherData,
   type RouteData
 } from '@/lib/apiUtils';
+import { calculateTripAverageScore } from '@/lib/drivingScore';
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -101,26 +102,33 @@ const Index = () => {
       });
       setWeatherData(newWeatherData);
 
-      // Fetch offset weather data in parallel (for comparison)
-      const offsetResults = await Promise.all(
-        calculatedWaypoints.map(async (waypoint, index) => {
-          try {
-            const offsetTime = new Date(waypoint.arrivalTime.getTime() + 60 * 60 * 1000);
-            const weatherOffset = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
-            return { index, weather: weatherOffset };
-          } catch (err) {
-            console.error(`Failed to fetch offset weather for waypoint ${index}:`, err);
-            return { index, weather: null };
-          }
-        })
-      );
+      // Calculate trip score to determine if we need alternative time comparisons
+      const tripScore = calculateTripAverageScore(newWeatherData);
+      
+      // Only fetch offset weather if conditions aren't already excellent (score > 90)
+      if (tripScore === null || tripScore <= 90) {
+        // Fetch offset weather data in parallel (for comparison)
+        const offsetResults = await Promise.all(
+          calculatedWaypoints.map(async (waypoint, index) => {
+            try {
+              const offsetTime = new Date(waypoint.arrivalTime.getTime() + 60 * 60 * 1000);
+              const weatherOffset = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
+              return { index, weather: weatherOffset };
+            } catch (err) {
+              console.error(`Failed to fetch offset weather for waypoint ${index}:`, err);
+              return { index, weather: null };
+            }
+          })
+        );
 
-      // Build the offset weather data map
-      const newWeatherDataOffset = new Map<number, WeatherData | null>();
-      offsetResults.forEach(result => {
-        newWeatherDataOffset.set(result.index, result.weather);
-      });
-      setWeatherDataOffset(newWeatherDataOffset);
+        // Build the offset weather data map
+        const newWeatherDataOffset = new Map<number, WeatherData | null>();
+        offsetResults.forEach(result => {
+          newWeatherDataOffset.set(result.index, result.weather);
+        });
+        setWeatherDataOffset(newWeatherDataOffset);
+      }
+      // If score > 90, skip offset fetching - conditions are already excellent!
 
       // Preparing stage - brief transition
       setLoadingStage('preparing');
