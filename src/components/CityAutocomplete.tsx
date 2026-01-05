@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 interface Suggestion {
   display_name: string;
   place_id: string;
+  coordinates: [number, number];
 }
 
 interface CityAutocompleteProps {
@@ -37,16 +38,15 @@ export const CityAutocomplete = ({
 
     setIsLoading(true);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
-      const response = await fetch(url, {
-        headers: { 'User-Agent': 'RouteWeatherPlanner/1.0' }
-      });
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&layer=city&layer=locality&layer=district`;
+      const response = await fetch(url);
       
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data.map((item: any) => ({
-          display_name: formatDisplayName(item),
-          place_id: item.place_id
+        setSuggestions(data.features.map((feature: any) => ({
+          display_name: formatPhotonDisplayName(feature.properties),
+          place_id: feature.properties.osm_id?.toString() || Math.random().toString(),
+          coordinates: feature.geometry.coordinates
         })));
       }
     } catch (error) {
@@ -56,17 +56,12 @@ export const CityAutocomplete = ({
     }
   };
 
-  const formatDisplayName = (item: any): string => {
+  const formatPhotonDisplayName = (props: any): string => {
     const parts = [];
-    if (item.address?.city) parts.push(item.address.city);
-    else if (item.address?.town) parts.push(item.address.town);
-    else if (item.address?.village) parts.push(item.address.village);
-    else if (item.name) parts.push(item.name);
-    
-    if (item.address?.state) parts.push(item.address.state);
-    if (item.address?.country) parts.push(item.address.country);
-    
-    return parts.length > 0 ? parts.join(', ') : item.display_name.split(',').slice(0, 3).join(',');
+    if (props.name) parts.push(props.name);
+    if (props.state) parts.push(props.state);
+    if (props.country) parts.push(props.country);
+    return parts.join(', ');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
