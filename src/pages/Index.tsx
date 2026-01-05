@@ -8,6 +8,7 @@ import { WeatherSummary } from '@/components/WeatherSummary';
 import { WeatherComparisonTable } from '@/components/WeatherComparisonTable';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { AdUnit } from '@/components/AdUnit';
+import { LoadingSplash } from '@/components/LoadingSplash';
 import { 
   geocodeLocation, 
   getRoute, 
@@ -20,6 +21,8 @@ import {
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<'idle' | 'route' | 'weather' | 'preparing'>('idle');
+  const [weatherProgress, setWeatherProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
@@ -35,6 +38,8 @@ const Index = () => {
 
   const handleSubmit = useCallback(async (from: string, to: string, departure: Date) => {
     setIsLoading(true);
+    setLoadingStage('route');
+    setWeatherProgress({ current: 0, total: 0 });
     setError(null);
     setRouteData(null);
     setWaypoints([]);
@@ -61,52 +66,83 @@ const Index = () => {
 
       // Calculate waypoints (with reverse geocoding for location names)
       const calculatedWaypoints = await calculateWaypoints(route, departure, from, to);
+      setWaypoints(calculatedWaypoints);
       
-      // Initialize loading states before setting waypoints
-      // so both are ready when WeatherSummary renders
+      // Initialize loading states
       const initialLoadingStates = new Map<number, boolean>();
       calculatedWaypoints.forEach((_, index) => {
-        initialLoadingStates.set(index, true);
+        initialLoadingStates.set(index, false); // Will be set to loaded after weather fetch
       });
-      
-      // Batch state updates together
       setLoadingStates(initialLoadingStates);
-      setWaypoints(calculatedWaypoints);
+
+      // Switch to weather fetching stage
+      setLoadingStage('weather');
+      setWeatherProgress({ current: 0, total: calculatedWaypoints.length });
+
+      // Fetch all weather data in parallel and wait for completion
+      const weatherResults = await Promise.all(
+        calculatedWaypoints.map(async (waypoint, index) => {
+          try {
+            const weather = await getWeather(waypoint.lat, waypoint.lon, waypoint.arrivalTime);
+            setWeatherProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            return { index, weather, error: null };
+          } catch (err) {
+            console.error(`Failed to fetch weather for waypoint ${index}:`, err);
+            setWeatherProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            return { index, weather: null, error: err };
+          }
+        })
+      );
+
+      // Build the weather data map from results
+      const newWeatherData = new Map<number, WeatherData | null>();
+      weatherResults.forEach(result => {
+        newWeatherData.set(result.index, result.weather);
+      });
+      setWeatherData(newWeatherData);
+
+      // Fetch offset weather data in parallel (for comparison)
+      const offsetResults = await Promise.all(
+        calculatedWaypoints.map(async (waypoint, index) => {
+          try {
+            const offsetTime = new Date(waypoint.arrivalTime.getTime() + 60 * 60 * 1000);
+            const weatherOffset = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
+            return { index, weather: weatherOffset };
+          } catch (err) {
+            console.error(`Failed to fetch offset weather for waypoint ${index}:`, err);
+            return { index, weather: null };
+          }
+        })
+      );
+
+      // Build the offset weather data map
+      const newWeatherDataOffset = new Map<number, WeatherData | null>();
+      offsetResults.forEach(result => {
+        newWeatherDataOffset.set(result.index, result.weather);
+      });
+      setWeatherDataOffset(newWeatherDataOffset);
+
+      // Preparing stage - brief transition
+      setLoadingStage('preparing');
+      
+      // Small delay for visual feedback before showing results
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // All done - show results
+      setLoadingStage('idle');
       setIsLoading(false);
       
-      // Scroll to results after data is loaded, accounting for sticky header
+      // Scroll to results after data is loaded
       setTimeout(() => {
         if (resultsRef.current) {
-          const headerHeight = 85; // Approximate header height
+          const headerHeight = 85;
           const elementPosition = resultsRef.current.getBoundingClientRect().top + window.scrollY;
           window.scrollTo({ top: elementPosition - headerHeight, behavior: 'smooth' });
         }
       }, 100);
 
-      // Fetch weather for each waypoint (current time and +1 hour offset)
-      calculatedWaypoints.forEach(async (waypoint, index) => {
-        try {
-          const weather = await getWeather(waypoint.lat, waypoint.lon, waypoint.arrivalTime);
-          setWeatherData(prev => new Map(prev).set(index, weather));
-        } catch (err) {
-          console.error(`Failed to fetch weather for waypoint ${index}:`, err);
-          setWeatherData(prev => new Map(prev).set(index, null));
-        } finally {
-          setLoadingStates(prev => new Map(prev).set(index, false));
-        }
-        
-        // Also fetch weather for +1 hour offset for comparison
-        try {
-          const offsetTime = new Date(waypoint.arrivalTime.getTime() + 60 * 60 * 1000);
-          const weatherOffset = await getWeather(waypoint.lat, waypoint.lon, offsetTime);
-          setWeatherDataOffset(prev => new Map(prev).set(index, weatherOffset));
-        } catch (err) {
-          console.error(`Failed to fetch offset weather for waypoint ${index}:`, err);
-          setWeatherDataOffset(prev => new Map(prev).set(index, null));
-        }
-      });
-
     } catch (err) {
+      setLoadingStage('idle');
       setIsLoading(false);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     }
@@ -162,17 +198,24 @@ const Index = () => {
           />
         )}
         
-        {(routeData && departureTime) || isLoading ? (
+        {/* Loading Splash Screen */}
+        {isLoading && loadingStage !== 'idle' && (
+          <LoadingSplash 
+            stage={loadingStage as 'route' | 'weather' | 'preparing'}
+            progress={weatherProgress}
+          />
+        )}
+        
+        {/* Results - only show when not loading */}
+        {!isLoading && routeData && departureTime && (
           <div ref={resultsRef}>
-            {routeData && departureTime && (
-              <RouteSummary
-                distance={routeData.distance}
-                duration={routeData.duration}
-                departureTime={departureTime}
-                fromName={fromName}
-                toName={toName}
-              />
-            )}
+            <RouteSummary
+              distance={routeData.distance}
+              duration={routeData.duration}
+              departureTime={departureTime}
+              fromName={fromName}
+              toName={toName}
+            />
             
             <WeatherSummary
               waypoints={waypoints}
@@ -182,20 +225,18 @@ const Index = () => {
               isLoading3hOffset={isLoading3hOffset}
               onRequest3hCheck={fetch3hOffsetWeather}
               loadingStates={loadingStates}
-              isCalculatingRoute={isLoading && waypoints.length === 0}
+              isCalculatingRoute={false}
             />
             
-            {routeData && (
-              <RouteMap
-                routeGeometry={routeData.geometry}
-                waypoints={waypoints}
-                weatherData={weatherData}
-              />
-            )}
+            <RouteMap
+              routeGeometry={routeData.geometry}
+              waypoints={waypoints}
+              weatherData={weatherData}
+            />
           </div>
-        ) : null}
+        )}
         
-        {waypoints.length > 0 && (
+        {!isLoading && waypoints.length > 0 && (
           <WeatherTimeline
             waypoints={waypoints}
             weatherData={weatherData}
@@ -203,7 +244,7 @@ const Index = () => {
           />
         )}
         
-        {waypoints.length > 0 && (
+        {!isLoading && waypoints.length > 0 && (
           <WeatherComparisonTable
             waypoints={waypoints}
             weatherData={weatherData}
