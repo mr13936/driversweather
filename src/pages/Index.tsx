@@ -230,7 +230,7 @@ const Index = () => {
       <footer className="border-t mt-auto">
         <div className="container mx-auto px-4 py-4">
           <p className="text-center text-sm text-muted-foreground">
-            Weather data from SMHI • Route data from OSRM • Geocoding by Nominatim
+            Weather data from SMHI & Open-Meteo • Route data from OSRM • Geocoding by Nominatim
           </p>
         </div>
       </footer>
