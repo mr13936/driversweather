@@ -599,6 +599,10 @@ export const WeatherSummary = ({
   useEffect(() => {
     if (loadedCount === 0 || totalCount === 0) return;
     
+    // Skip 3h check if conditions are already excellent (score > 90)
+    const tripScore = calculateTripAverageScore(weatherData);
+    if (tripScore !== null && tripScore > 90) return;
+    
     const assessment = assessTrip(waypoints, weatherData);
     const offsetAssessment = offsetLoadedCount > 0 && weatherDataOffset
       ? assessTrip(waypoints, weatherDataOffset)
@@ -718,14 +722,19 @@ export const WeatherSummary = ({
           </div>
         )}
         <p className="mt-1 text-sm font-medium">{overallMessage}</p>
-        {waitMessage && (
-          <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
-        )}
-        {(waitMessage === '⏰ Waiting 1 hour will not improve conditions.' || waitMessage === '⏰ Waiting 1 hour will worsen conditions.') && wait3hMessage && (
-          <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
-            {isLoading3hOffset && <Loader2 className="h-3 w-3 animate-spin" />}
-            <span>⏰ {wait3hMessage}</span>
-          </p>
+        {/* Only show wait messages if conditions aren't already excellent */}
+        {calculateTripAverageScore(weatherData) !== null && calculateTripAverageScore(weatherData)! <= 90 && (
+          <>
+            {waitMessage && (
+              <p className="mt-1 text-sm text-muted-foreground">{waitMessage}</p>
+            )}
+            {(waitMessage === '⏰ Waiting 1 hour will not improve conditions.' || waitMessage === '⏰ Waiting 1 hour will worsen conditions.') && wait3hMessage && (
+              <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+                {isLoading3hOffset && <Loader2 className="h-3 w-3 animate-spin" />}
+                <span>⏰ {wait3hMessage}</span>
+              </p>
+            )}
+          </>
         )}
         
         {narrative.length > 0 && (
