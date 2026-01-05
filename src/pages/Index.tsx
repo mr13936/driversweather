@@ -187,9 +187,6 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <RouteInput onSubmit={handleSubmit} isLoading={isLoading} />
         
-        {/* Ad placement after route input */}
-        <AdUnit slot="YOUR_AD_SLOT_1" format="horizontal" className="my-4" />
-        
         {error && (
           <ErrorMessage 
             title="Error" 
@@ -256,9 +253,10 @@ const Index = () => {
         
       </main>
 
-      {/* Ad placement before footer */}
-      <div className="container mx-auto px-4 py-4">
-        <AdUnit slot="YOUR_AD_SLOT_2" format="horizontal" className="my-4" />
+      {/* Ad placements */}
+      <div className="container mx-auto px-4 py-4 space-y-4">
+        <AdUnit slot="YOUR_AD_SLOT_1" format="horizontal" />
+        <AdUnit slot="YOUR_AD_SLOT_2" format="horizontal" />
       </div>
 
       {/* Footer */}
