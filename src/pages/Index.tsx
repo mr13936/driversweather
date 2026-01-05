@@ -255,8 +255,8 @@ const Index = () => {
 
       {/* Ad placements */}
       <div className="container mx-auto px-4 py-4 space-y-4">
-        <AdUnit slot="YOUR_AD_SLOT_1" format="horizontal" />
-        <AdUnit slot="YOUR_AD_SLOT_2" format="horizontal" />
+        <AdUnit slot="6863267062" format="horizontal" />
+        <AdUnit slot="6863267062" format="horizontal" />
       </div>
 
       {/* Footer */}
