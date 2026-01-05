@@ -176,7 +176,7 @@ const Index = () => {
               <img src={logo} alt="Route Weather Planner" className="h-full w-full object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Drivesafer.app</h1>
+              <h1 className="text-xl font-bold text-foreground">DriveSafer</h1>
               <p className="text-sm text-muted-foreground">Plan your road trip with dynamic weather forecasts for locations along your route</p>
             </div>
           </div>
