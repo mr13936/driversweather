@@ -79,7 +79,7 @@ export const CityAutocomplete = ({
   };
 
   const handleSelect = (suggestion: Suggestion) => {
-    onChange(suggestion.display_name.split(',')[0].trim());
+    onChange(suggestion.display_name);
     setSuggestions([]);
     setShowSuggestions(false);
   };
