@@ -282,7 +282,7 @@ const findDaylightEvents = (
     const weather = weatherData.get(index);
     if (!weather) return;
     
-    if (weather.sunrise) {
+    if (weather.sunrise && !isNaN(weather.sunrise.getTime())) {
       const sunriseTime = weather.sunrise.getTime();
       const key = `sunrise-${weather.sunrise.toISOString().split('T')[0]}`;
       if (sunriseTime >= tripStart && sunriseTime <= tripEnd && !seenEvents.has(key)) {
@@ -291,7 +291,7 @@ const findDaylightEvents = (
       }
     }
     
-    if (weather.sunset) {
+    if (weather.sunset && !isNaN(weather.sunset.getTime())) {
       const sunsetTime = weather.sunset.getTime();
       const key = `sunset-${weather.sunset.toISOString().split('T')[0]}`;
       if (sunsetTime >= tripStart && sunsetTime <= tripEnd && !seenEvents.has(key)) {
