@@ -11,8 +11,8 @@ interface RouteInputProps {
 }
 
 export const RouteInput = ({ onSubmit, isLoading }: RouteInputProps) => {
-  const [from, setFrom] = useState('Stockholm');
-  const [to, setTo] = useState('Luleå');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [buttonWidth, setButtonWidth] = useState<number | undefined>(undefined);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
