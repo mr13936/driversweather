@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Cloud } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
 import logo from '@/assets/logo.png';
 import { RouteInput } from '@/components/RouteInput';
 import { RouteSummary } from '@/components/RouteSummary';
@@ -8,6 +7,7 @@ import { WeatherTimeline } from '@/components/WeatherTimeline';
 import { WeatherSummary } from '@/components/WeatherSummary';
 import { WeatherComparisonTable } from '@/components/WeatherComparisonTable';
 import { ErrorMessage } from '@/components/ErrorMessage';
+import { AdUnit } from '@/components/AdUnit';
 import { 
   geocodeLocation, 
   getRoute, 
@@ -151,6 +151,9 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <RouteInput onSubmit={handleSubmit} isLoading={isLoading} />
         
+        {/* Ad placement after route input */}
+        <AdUnit slot="YOUR_AD_SLOT_1" format="horizontal" className="my-4" />
+        
         {error && (
           <ErrorMessage 
             title="Error" 
@@ -225,6 +228,11 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Ad placement before footer */}
+      <div className="container mx-auto px-4 py-4">
+        <AdUnit slot="YOUR_AD_SLOT_2" format="horizontal" className="my-4" />
+      </div>
 
       {/* Footer */}
       <footer className="border-t mt-auto">
