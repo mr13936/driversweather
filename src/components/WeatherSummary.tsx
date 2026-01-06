@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, CloudSun, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CloudSun, Loader2, Sun, Cloud, CloudRain, Snowflake, CloudLightning, CloudFog, Moon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
-import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
+import { getWeatherDescription } from '@/lib/weatherUtils';
 import { 
   calculateTripAverageScore, 
   getDrivingScoreLabel, 
   getDrivingScoreColor 
 } from '@/lib/drivingScore';
+
+// Get simple weather label for narrative
+const getWeatherLabel = (symbol: number): string => {
+  if (symbol <= 2) return '☀';
+  if (symbol <= 4) return '⛅';
+  if (symbol <= 6) return '☁';
+  if (symbol === 7) return '≡';
+  if ((symbol >= 8 && symbol <= 10) || (symbol >= 18 && symbol <= 20)) return '🌧';
+  if (symbol === 11 || symbol === 21) return '⚡';
+  if ((symbol >= 12 && symbol <= 14) || (symbol >= 22 && symbol <= 24)) return '🌨';
+  if ((symbol >= 15 && symbol <= 17) || (symbol >= 25 && symbol <= 27)) return '❄';
+  return '•';
+};
 
 interface WeatherSummaryProps {
   waypoints: Waypoint[];
@@ -424,7 +437,7 @@ const generateNarrative = (
 
   // Generate narrative for each segment
   segments.forEach((segment, index) => {
-    const icon = getWeatherIcon(segment.weather.weatherSymbol);
+    const icon = getWeatherLabel(segment.weather.weatherSymbol);
     const conditions = describeConditions(segment.weather);
     const conditionSeverity = getConditionSeverity(segment.weather);
     
@@ -469,7 +482,7 @@ const generateNarrative = (
   const lastWeather = weatherData.get(waypoints.length - 1);
   const lastWaypoint = waypoints[waypoints.length - 1];
   if (lastWeather && lastWaypoint) {
-    const icon = getWeatherIcon(lastWeather.weatherSymbol);
+    const icon = getWeatherLabel(lastWeather.weatherSymbol);
     const temp = lastWeather.temperature.toFixed(0);
     const arrivalDaylight = isDaytime(endTime, lastWeather.sunrise, lastWeather.sunset);
     const daylightNote = arrivalDaylight ? '' : ' It will be dark when you arrive.';

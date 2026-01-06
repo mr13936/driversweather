@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
-import { getWeatherIcon, getWeatherDescription } from '@/lib/weatherUtils';
+import { getWeatherIconComponent, getWeatherDescription } from '@/lib/weatherUtils';
 import { 
   calculateTripAverageScore, 
   getDrivingScoreLabel, 
@@ -22,6 +22,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+
+const WeatherIconDisplay = ({ symbol }: { symbol: number }) => {
+  const IconComponent = getWeatherIconComponent(symbol);
+  return <IconComponent className="h-5 w-5 inline-block text-primary" />;
+};
 
 interface WeatherComparisonTableProps {
   waypoints: Waypoint[];
@@ -185,7 +190,7 @@ export const WeatherComparisonTable = ({
             <TableRow className={nowScore === bestDeparture?.score ? 'bg-primary/5' : ''}>
               <TableCell className="font-medium">Now</TableCell>
               <TableCell className="text-center">
-                <span className="text-lg">{getWeatherIcon(nowSymbol)}</span>
+                <WeatherIconDisplay symbol={nowSymbol} />
                 <span className="ml-2 text-sm text-muted-foreground">{getWeatherDescription(nowSymbol)}</span>
               </TableCell>
               <TableCell className="text-center">{nowAssessment.avgTemp.toFixed(1)}°C</TableCell>
@@ -202,7 +207,7 @@ export const WeatherComparisonTable = ({
               {offset1hAssessment ? (
                 <>
                   <TableCell className="text-center">
-                    <span className="text-lg">{getWeatherIcon(offset1hSymbol!)}</span>
+                    <WeatherIconDisplay symbol={offset1hSymbol!} />
                     <span className="ml-2 text-sm text-muted-foreground">{getWeatherDescription(offset1hSymbol!)}</span>
                   </TableCell>
                   <TableCell className="text-center">{offset1hAssessment.avgTemp.toFixed(1)}°C</TableCell>
@@ -231,7 +236,7 @@ export const WeatherComparisonTable = ({
               ) : offset3hAssessment ? (
                 <>
                   <TableCell className="text-center">
-                    <span className="text-lg">{getWeatherIcon(offset3hSymbol!)}</span>
+                    <WeatherIconDisplay symbol={offset3hSymbol!} />
                     <span className="ml-2 text-sm text-muted-foreground">{getWeatherDescription(offset3hSymbol!)}</span>
                   </TableCell>
                   <TableCell className="text-center">{offset3hAssessment.avgTemp.toFixed(1)}°C</TableCell>

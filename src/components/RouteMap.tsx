@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Waypoint, WeatherData } from '@/lib/apiUtils';
-import { getWeatherIcon, getWeatherDescription, isNightTime } from '@/lib/weatherUtils';
+import { getWeatherDescription, isNightTime } from '@/lib/weatherUtils';
 
 // Fix for default marker icons in Leaflet with webpack/vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -12,16 +12,60 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Map weather symbols to simple SVG icons for map markers
+const getMapWeatherSvg = (symbol: number, isNight: boolean = false): string => {
+  // Clear/partly cloudy at night
+  if (isNight && symbol <= 4) {
+    return symbol <= 2 
+      ? '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" stroke="currentColor" stroke-width="2" fill="none"/>'
+      : '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M17.5 19H9a4 4 0 0 1 0-8h.5" stroke="currentColor" stroke-width="2" fill="none"/>';
+  }
+  
+  // Sun (clear)
+  if (symbol <= 2) return '<circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="currentColor" stroke-width="2"/>';
+  
+  // Partly cloudy
+  if (symbol <= 4) return '<path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="4" stroke="currentColor" stroke-width="2" fill="none"/><path d="M17.5 19H9a4 4 0 0 1 0-8h.5" stroke="currentColor" stroke-width="2" fill="none"/>';
+  
+  // Cloudy/Overcast
+  if (symbol <= 6) return '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke="currentColor" stroke-width="2" fill="none"/>';
+  
+  // Fog
+  if (symbol === 7) return '<path d="M4 14h16M4 18h16M6 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  
+  // Rain
+  if ((symbol >= 8 && symbol <= 10) || (symbol >= 18 && symbol <= 20)) return '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 19v2M12 19v2M16 19v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  
+  // Thunder
+  if (symbol === 11 || symbol === 21) return '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M13 12l-2 4h4l-2 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  
+  // Sleet
+  if ((symbol >= 12 && symbol <= 14) || (symbol >= 22 && symbol <= 24)) return '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 19v1M12 19v1M16 19v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="22" r="1" fill="currentColor"/><circle cx="14" cy="22" r="1" fill="currentColor"/>';
+  
+  // Snow
+  if ((symbol >= 15 && symbol <= 17) || (symbol >= 25 && symbol <= 27)) return '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 19v4M10 21h4M8 19l1 1M15 19l1 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
+  
+  // Default
+  return '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" fill="none"/>';
+};
+
 interface RouteMapProps {
   routeGeometry: [number, number][];
   waypoints: Waypoint[];
   weatherData: Map<number, WeatherData | null>;
 }
 
-// Create custom icon with weather emoji
-const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => {
+// Create custom icon with weather SVG
+const createWeatherIcon = (weatherSymbol: number | null, isNight: boolean, isFirst: boolean, isLast: boolean) => {
   const bgColor = isFirst ? '#3b82f6' : isLast ? '#22c55e' : '#ffffff';
   const borderColor = isFirst ? '#2563eb' : isLast ? '#16a34a' : '#e5e7eb';
+  const iconColor = isFirst || isLast ? '#ffffff' : '#374151';
+  
+  const svgContent = weatherSymbol !== null 
+    ? getMapWeatherSvg(weatherSymbol, isNight)
+    : (isFirst ? '<path d="M4 17h12M4 17l4-4M4 17l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' 
+       : isLast ? '<path d="M4 15l4-6 4 6M20 12l-4 4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+       : '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>');
   
   return L.divIcon({
     className: 'custom-weather-marker',
@@ -36,9 +80,10 @@ const createWeatherIcon = (emoji: string, isFirst: boolean, isLast: boolean) => 
         border: 2px solid ${borderColor};
         border-radius: 50%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        font-size: 20px;
       ">
-        ${emoji}
+        <svg width="20" height="20" viewBox="0 0 24 24" style="color: ${iconColor}">
+          ${svgContent}
+        </svg>
       </div>
     `,
     iconSize: [40, 40],
@@ -187,12 +232,9 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       const isFirst = originalIndex === 0;
       const isLast = originalIndex === waypoints.length - 1;
       const isNight = weather ? isNightTime(waypoint.arrivalTime, weather.sunrise, weather.sunset) : false;
-      const emoji = weather 
-        ? getWeatherIcon(weather.weatherSymbol, isNight) 
-        : (isFirst ? '🚗' : isLast ? '🏁' : '⏳');
 
       const marker = L.marker([waypoint.lat, waypoint.lon], {
-        icon: createWeatherIcon(emoji, isFirst, isLast),
+        icon: createWeatherIcon(weather?.weatherSymbol ?? null, isNight, isFirst, isLast),
       }).addTo(mapRef.current);
 
       // Create popup content
@@ -205,13 +247,15 @@ export const RouteMap = ({ routeGeometry, waypoints, weatherData }: RouteMapProp
       if (weather) {
         popupContent += `
           <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem;">
-            <p style="margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 1.25rem;">${getWeatherIcon(weather.weatherSymbol, isNight)}</span>
-              <span>${getWeatherDescription(weather.weatherSymbol)}</span>
+            <p style="margin: 0; font-weight: 500;">
+              ${getWeatherDescription(weather.weatherSymbol)}
             </p>
-            <p style="margin: 0;">🌡️ ${weather.temperature.toFixed(1)}°C</p>
-            <p style="margin: 0;">💨 ${weather.windSpeed.toFixed(1)} m/s</p>
-            ${weather.precipitationIntensity > 0 ? `<p style="margin: 0;">💧 ${weather.precipitationIntensity.toFixed(1)} mm/h</p>` : ''}
+            <p style="margin: 0; display: flex; align-items: center; gap: 4px;">
+              <span style="font-weight: 500;">${weather.temperature.toFixed(1)}°C</span>
+              <span style="color: #6b7280;">•</span>
+              <span>${weather.windSpeed.toFixed(1)} m/s wind</span>
+            </p>
+            ${weather.precipitationIntensity > 0 ? `<p style="margin: 0; color: #3b82f6;">${weather.precipitationIntensity.toFixed(1)} mm/h precipitation</p>` : ''}
           </div>
         `;
       }
