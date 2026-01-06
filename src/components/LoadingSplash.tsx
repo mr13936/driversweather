@@ -31,7 +31,7 @@ export const LoadingSplash = ({ stage, progress }: LoadingSplashProps) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 animate-fade-in">
+    <div className="flex flex-col items-center justify-start -mt-32 pt-8 animate-fade-in relative z-10">
       <div className="bg-card border border-border rounded-2xl p-8 shadow-lg max-w-md w-full mx-4">
         {/* Animated Logo */}
         <div className="flex justify-center mb-6">
