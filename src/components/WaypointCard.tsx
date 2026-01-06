@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { WeatherData, Waypoint } from '@/lib/apiUtils';
 import { 
-  getWeatherIcon, 
+  getWeatherIconComponent, 
   getWeatherDescription, 
   getPrecipitationType,
   isDangerousConditions,
@@ -120,7 +120,10 @@ export const WaypointCard = ({
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : weather ? (
-                getWeatherIcon(weather.weatherSymbol)
+                (() => {
+                  const WeatherIcon = getWeatherIconComponent(weather.weatherSymbol);
+                  return <WeatherIcon className="h-4 w-4" />;
+                })()
               ) : (
                 <MapPin className="h-3 w-3" />
               )}
