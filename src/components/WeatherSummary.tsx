@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, CloudSun, Loader2, Sun, Cloud, CloudRain, Snowflake, CloudLightning, CloudFog, Moon } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CloudSun, Loader2, Sun, Cloud, CloudRain, Snowflake, CloudLightning, CloudFog, Moon, Sunrise, Sunset } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { WeatherData, Waypoint } from '@/lib/apiUtils';
@@ -10,17 +10,19 @@ import {
   getDrivingScoreColor 
 } from '@/lib/drivingScore';
 
-// Get simple weather label for narrative
-const getWeatherLabel = (symbol: number): string => {
-  if (symbol <= 2) return '☀';
-  if (symbol <= 4) return '⛅';
-  if (symbol <= 6) return '☁';
-  if (symbol === 7) return '≡';
-  if ((symbol >= 8 && symbol <= 10) || (symbol >= 18 && symbol <= 20)) return '🌧';
-  if (symbol === 11 || symbol === 21) return '⚡';
-  if ((symbol >= 12 && symbol <= 14) || (symbol >= 22 && symbol <= 24)) return '🌨';
-  if ((symbol >= 15 && symbol <= 17) || (symbol >= 25 && symbol <= 27)) return '❄';
-  return '•';
+// Get weather icon component for narrative
+const getWeatherNarrativeIcon = (symbol: number): React.ReactNode => {
+  const iconClass = "inline-block w-4 h-4 mr-1 align-text-bottom";
+  
+  if (symbol <= 2) return <Sun className={iconClass} />;
+  if (symbol <= 4) return <CloudSun className={iconClass} />;
+  if (symbol <= 6) return <Cloud className={iconClass} />;
+  if (symbol === 7) return <CloudFog className={iconClass} />;
+  if ((symbol >= 8 && symbol <= 10) || (symbol >= 18 && symbol <= 20)) return <CloudRain className={iconClass} />;
+  if (symbol === 11 || symbol === 21) return <CloudLightning className={iconClass} />;
+  if ((symbol >= 12 && symbol <= 14) || (symbol >= 22 && symbol <= 24)) return <CloudRain className={iconClass} />;
+  if ((symbol >= 15 && symbol <= 17) || (symbol >= 25 && symbol <= 27)) return <Snowflake className={iconClass} />;
+  return <Cloud className={iconClass} />;
 };
 
 interface WeatherSummaryProps {
@@ -359,6 +361,7 @@ const isDaytime = (time: Date, sunrise: Date | null, sunset: Date | null): boole
 };
 
 interface NarrativeLine {
+  icon: React.ReactNode;
   text: string;
   severity: ConditionSeverity;
 }
@@ -432,35 +435,35 @@ const generateNarrative = (
 
   // Add initial daylight context
   if (!startsDuringDay) {
-    narrative.push({ text: '🌙 You\'ll be starting your journey in darkness.', severity: 'none' });
+    narrative.push({ icon: <Moon className="inline-block w-4 h-4 mr-1 align-text-bottom" />, text: 'You\'ll be starting your journey in darkness.', severity: 'none' });
   }
 
   // Generate narrative for each segment
   segments.forEach((segment, index) => {
-    const icon = getWeatherLabel(segment.weather.weatherSymbol);
+    const icon = getWeatherNarrativeIcon(segment.weather.weatherSymbol);
     const conditions = describeConditions(segment.weather);
     const conditionSeverity = getConditionSeverity(segment.weather);
     
     if (index === 0) {
       // First segment
       if (segments.length === 1) {
-        narrative.push({ text: `${icon} Throughout your journey, expect ${conditions}. Conditions remain consistent all the way to your destination.`, severity: conditionSeverity });
+        narrative.push({ icon, text: `Throughout your journey, expect ${conditions}. Conditions remain consistent all the way to your destination.`, severity: conditionSeverity });
       } else {
         const duration = formatDuration(segment.endMinutes - segment.startMinutes);
         if (segment.endMinutes < 30) {
-          narrative.push({ text: `${icon} Your trip begins with ${conditions}.`, severity: conditionSeverity });
+          narrative.push({ icon, text: `Your trip begins with ${conditions}.`, severity: conditionSeverity });
         } else {
-          narrative.push({ text: `${icon} The first ${duration} of your trip will see ${conditions}.`, severity: conditionSeverity });
+          narrative.push({ icon, text: `The first ${duration} of your trip will see ${conditions}.`, severity: conditionSeverity });
         }
       }
     } else if (index === segments.length - 1) {
       // Last segment - arrival
       const locationRef = formatLocationWithTime(segment.endLocation, segment.startMinutes);
-      narrative.push({ text: `${icon} As you approach ${locationRef}, expect ${conditions}.`, severity: conditionSeverity });
+      narrative.push({ icon, text: `As you approach ${locationRef}, expect ${conditions}.`, severity: conditionSeverity });
     } else {
       // Middle segments
       const locationRef = formatLocationWithTime(segment.startLocation, segment.startMinutes);
-      narrative.push({ text: `${icon} After ${locationRef}, the weather will change to ${conditions}.`, severity: conditionSeverity });
+      narrative.push({ icon, text: `After ${locationRef}, the weather will change to ${conditions}.`, severity: conditionSeverity });
     }
     
     // Add daylight events that occur during this segment
@@ -468,11 +471,12 @@ const generateNarrative = (
       if (event.minutesFromStart >= segment.startMinutes && 
           (index === segments.length - 1 || event.minutesFromStart < segments[index + 1]?.startMinutes)) {
         const timeStr = formatTime(event.time);
+        const iconClass = "inline-block w-4 h-4 mr-1 align-text-bottom";
         
         if (event.type === 'sunrise') {
-          narrative.push({ text: `🌅 Sunrise at ${timeStr}. Daylight driving conditions ahead.`, severity: 'none' });
+          narrative.push({ icon: <Sunrise className={iconClass} />, text: `Sunrise at ${timeStr}. Daylight driving conditions ahead.`, severity: 'none' });
         } else {
-          narrative.push({ text: `🌇 Sunset at ${timeStr}. You'll continue in darkness after this.`, severity: 'none' });
+          narrative.push({ icon: <Sunset className={iconClass} />, text: `Sunset at ${timeStr}. You'll continue in darkness after this.`, severity: 'none' });
         }
       }
     });
@@ -482,12 +486,12 @@ const generateNarrative = (
   const lastWeather = weatherData.get(waypoints.length - 1);
   const lastWaypoint = waypoints[waypoints.length - 1];
   if (lastWeather && lastWaypoint) {
-    const icon = getWeatherLabel(lastWeather.weatherSymbol);
+    const icon = getWeatherNarrativeIcon(lastWeather.weatherSymbol);
     const temp = lastWeather.temperature.toFixed(0);
     const arrivalDaylight = isDaytime(endTime, lastWeather.sunrise, lastWeather.sunset);
     const daylightNote = arrivalDaylight ? '' : ' It will be dark when you arrive.';
     const conditionSeverity = getConditionSeverity(lastWeather);
-    narrative.push({ text: `${icon} At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.${daylightNote}`, severity: conditionSeverity });
+    narrative.push({ icon, text: `At your destination (${lastWaypoint.name}), it will be ${temp}°C with ${getWeatherDescription(lastWeather.weatherSymbol).toLowerCase()}.${daylightNote}`, severity: conditionSeverity });
   }
 
   return narrative;
@@ -754,7 +758,10 @@ export const WeatherSummary = ({
           <div className="mt-3 space-y-2">
             {narrative.map((item, index) => (
               <p key={index} className="text-sm text-muted-foreground leading-relaxed flex items-start gap-1">
-                <span>{item.text}</span>
+                <span className="flex items-start">
+                  {item.icon}
+                  {item.text}
+                </span>
                 {item.severity === 'severe' && <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />}
                 {item.severity === 'caution' && <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />}
               </p>
