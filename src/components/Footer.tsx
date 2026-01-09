@@ -7,6 +7,12 @@ const Footer = () => {
         {/* Navigation Links */}
         <nav className="flex flex-wrap justify-center gap-6 mb-6">
           <Link
+            to="/"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Planner
+          </Link>
+          <Link
             to="/how-it-works"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
