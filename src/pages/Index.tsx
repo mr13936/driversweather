@@ -9,8 +9,10 @@ import { WeatherComparisonTable } from '@/components/WeatherComparisonTable';
 import { ErrorMessage } from '@/components/ErrorMessage';
 import { AdUnit } from '@/components/AdUnit';
 import { LoadingSplash } from '@/components/LoadingSplash';
+import Footer from '@/components/Footer';
 import { geocodeLocation, getRoute, calculateWaypoints, getWeather, type Waypoint, type WeatherData, type RouteData } from '@/lib/apiUtils';
 import { calculateTripAverageScore } from '@/lib/drivingScore';
+
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<'idle' | 'route' | 'weather' | 'preparing'>('idle');
@@ -182,7 +184,8 @@ const Index = () => {
     }));
     setIsLoading3hOffset(false);
   }, []);
-  return <div className="min-h-screen bg-background">
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -199,7 +202,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-6 flex-1">
         <RouteInput onSubmit={handleSubmit} isLoading={isLoading} />
         
         {error && <ErrorMessage title="Error" message={error} onRetry={() => setError(null)} />}
@@ -208,18 +211,19 @@ const Index = () => {
         {isLoading && loadingStage !== 'idle' && <LoadingSplash stage={loadingStage as 'route' | 'weather' | 'preparing'} progress={weatherProgress} />}
         
         {/* Results - only show when not loading */}
-        {!isLoading && routeData && departureTime && <div ref={resultsRef}>
+        {!isLoading && routeData && departureTime && (
+          <div ref={resultsRef}>
             <RouteSummary distance={routeData.distance} duration={routeData.duration} departureTime={departureTime} fromName={fromName} toName={toName} />
             
             <WeatherSummary waypoints={waypoints} weatherData={weatherData} weatherDataOffset={weatherDataOffset} weatherDataOffset3h={weatherDataOffset3h} isLoading3hOffset={isLoading3hOffset} onRequest3hCheck={fetch3hOffsetWeather} loadingStates={loadingStates} isCalculatingRoute={false} />
             
             <RouteMap routeGeometry={routeData.geometry} waypoints={waypoints} weatherData={weatherData} />
-          </div>}
+          </div>
+        )}
         
         {!isLoading && waypoints.length > 0 && <WeatherTimeline waypoints={waypoints} weatherData={weatherData} loadingStates={loadingStates} />}
         
         {!isLoading && waypoints.length > 0 && <WeatherComparisonTable waypoints={waypoints} weatherData={weatherData} weatherDataOffset={weatherDataOffset} weatherDataOffset3h={weatherDataOffset3h} isLoading3hOffset={isLoading3hOffset} />}
-        
       </main>
 
       {/* Ad placements */}
@@ -228,12 +232,9 @@ const Index = () => {
         <AdUnit slot="6863267062" format="horizontal" />
       </div>
 
-      {/* Footer */}
-      <footer className="border-t mt-auto">
-        <div className="container mx-auto px-4 py-4">
-          <p className="text-center text-sm text-muted-foreground">Weather data from SMHI & Open-Meteo • Route data from OSRM • Geocoding by Nominatim & Komoot Photon  • Created by Pasheman Studios</p>
-        </div>
-      </footer>
-    </div>;
+      <Footer />
+    </div>
+  );
 };
+
 export default Index;
