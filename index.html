@@ -21,10 +21,52 @@
   <meta name="twitter:title" content="DriveSafer - Route and weather">
   <meta property="og:description" content="Plan your road trip with weather forecasts along your route">
   <meta name="twitter:description" content="Plan your road trip with weather forecasts along your route">
+  
+  <!-- Structured data for search engines -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "DriveSafer",
+    "description": "Plan your road trip with accurate weather forecasts along your entire route. Get driving conditions scores and detailed weather timelines.",
+    "applicationCategory": "TravelApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-rendered content for search engine crawlers - replaced when React loads -->
+      <div style="max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: system-ui, sans-serif;">
+        <header style="text-align: center; margin-bottom: 32px;">
+          <h1 style="font-size: 2rem; margin-bottom: 8px;">DriveSafer - Route Weather Planner</h1>
+          <p style="color: #666;">Plan your road trip with weather forecasts along your route</p>
+        </header>
+        <main>
+          <section style="margin-bottom: 24px;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 12px;">Plan Your Journey</h2>
+            <p>Enter your starting point, destination, and departure time to see weather conditions you'll encounter during your drive. Make informed decisions about when to travel for the safest trip.</p>
+          </section>
+          <section style="margin-bottom: 24px;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 12px;">Features</h2>
+            <ul style="line-height: 1.8;">
+              <li>Real-time weather forecasts along your entire route</li>
+              <li>Driving conditions safety score assessment</li>
+              <li>Support for multiple waypoints and stops</li>
+              <li>Detailed hourly weather timeline</li>
+              <li>Interactive route map visualization</li>
+            </ul>
+          </section>
+          <p style="text-align: center; color: #888; margin-top: 32px;">Loading application...</p>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
