@@ -12,7 +12,6 @@ import { LoadingSplash } from '@/components/LoadingSplash';
 import Footer from '@/components/Footer';
 import { geocodeLocation, getRoute, calculateWaypoints, getWeather, type Waypoint, type WeatherData, type RouteData } from '@/lib/apiUtils';
 import { calculateTripAverageScore } from '@/lib/drivingScore';
-
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<'idle' | 'route' | 'weather' | 'preparing'>('idle');
@@ -184,8 +183,7 @@ const Index = () => {
     }));
     setIsLoading3hOffset(false);
   }, []);
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
+  return <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -194,7 +192,7 @@ const Index = () => {
               <img src={logo} alt="Route Weather Planner" className="h-full w-full object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">DriveSafer (beta)</h1>
+              <h1 className="text-xl font-bold text-foreground">DriveSafer (beta) - Roadtrip planning with weather in mind</h1>
               <p className="text-sm text-muted-foreground">Plan your road trip with dynamic weather forecasts for locations along your route</p>
             </div>
           </div>
@@ -211,15 +209,13 @@ const Index = () => {
         {isLoading && loadingStage !== 'idle' && <LoadingSplash stage={loadingStage as 'route' | 'weather' | 'preparing'} progress={weatherProgress} />}
         
         {/* Results - only show when not loading */}
-        {!isLoading && routeData && departureTime && (
-          <div ref={resultsRef}>
+        {!isLoading && routeData && departureTime && <div ref={resultsRef}>
             <RouteSummary distance={routeData.distance} duration={routeData.duration} departureTime={departureTime} fromName={fromName} toName={toName} />
             
             <WeatherSummary waypoints={waypoints} weatherData={weatherData} weatherDataOffset={weatherDataOffset} weatherDataOffset3h={weatherDataOffset3h} isLoading3hOffset={isLoading3hOffset} onRequest3hCheck={fetch3hOffsetWeather} loadingStates={loadingStates} isCalculatingRoute={false} />
             
             <RouteMap routeGeometry={routeData.geometry} waypoints={waypoints} weatherData={weatherData} />
-          </div>
-        )}
+          </div>}
         
         {!isLoading && waypoints.length > 0 && <WeatherTimeline waypoints={waypoints} weatherData={weatherData} loadingStates={loadingStates} />}
         
@@ -233,8 +229,6 @@ const Index = () => {
       </div>
 
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
